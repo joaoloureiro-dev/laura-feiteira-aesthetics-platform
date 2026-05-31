@@ -1,4 +1,4 @@
-function App() {
+export function App() {
   return (
     <main className="min-h-screen bg-brand-ivory text-brand-charcoal">
       <section className="mx-auto flex min-h-screen max-w-6xl flex-col items-center justify-center px-6 py-20 text-center">
@@ -34,5 +34,3 @@ function App() {
     </main>
   )
 }
-
-export default App
