@@ -3,7 +3,7 @@ import helmet from "@fastify/helmet"
 import fastify from "fastify"
 
 import { env } from "./config/env"
-import { healthRoutes } from "./routes/health.routes"
+import { registerRoutes } from "./routes"
 
 /**
  * Builds the Fastify application.
@@ -35,10 +35,10 @@ export function buildApp() {
     })
 
     /**
-     * API routes.
-     * Later we will register auth, users, bookings, services and emails here.
+     * Register all API routes from a central route registry.
+     * This keeps app.ts focused on application setup.
      */
-    app.register(healthRoutes)
+    app.register(registerRoutes)
 
     return app
 }
