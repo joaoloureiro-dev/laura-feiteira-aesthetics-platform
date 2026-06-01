@@ -1,6 +1,10 @@
 import { useState } from "react"
 
+
 import logo from "../../assets/brand/laura-feiteira-logo.png"
+
+import { Link } from "react-router-dom"
+import { routePaths } from "../../routes/routePaths"
 
 const navigationLinks = [
     {
@@ -35,8 +39,8 @@ export function Header() {
     return (
         <header className="fixed left-0 top-0 z-50 w-full bg-brand-ivory/95 backdrop-blur-md">
             <div className="mx-auto flex h-20 max-w-6xl items-center justify-between px-6">
-                <a
-                    href="/"
+                <Link
+                    to={routePaths.home}
                     className="flex items-center gap-3"
                     aria-label="Ir para a página inicial da Laura Feiteira Estética"
                     onClick={closeMobileMenu}
@@ -44,9 +48,9 @@ export function Header() {
                     <img
                         src={logo}
                         alt="Laura Feiteira Estética"
-                        className="h-16 w-auto object-contain"
+                        className="h-14 w-auto object-contain sm:h-16"
                     />
-                </a>
+                </Link>
 
                 <nav
                     className="hidden items-center gap-8 text-sm font-medium text-brand-gray md:flex"
@@ -65,7 +69,7 @@ export function Header() {
 
                 <div className="hidden items-center gap-3 md:flex">
                     <a
-                        href="/login"
+                        href={routePaths.login}
                         className="rounded-full border border-brand-gold/40 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-brand-dark-gold transition hover:bg-white"
                     >
                         Área cliente
@@ -128,7 +132,7 @@ export function Header() {
 
                     <div className="mt-4 grid gap-3 border-t border-brand-gold/10 pt-5">
                         <a
-                            href="/login"
+                            href={routePaths.login}
                             className="rounded-full border border-brand-gold/40 px-5 py-3 text-center text-xs font-semibold uppercase tracking-wide text-brand-dark-gold transition hover:bg-white"
                             onClick={closeMobileMenu}
                         >

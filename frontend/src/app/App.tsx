@@ -1,10 +1,17 @@
-import { PublicLayout } from "../components/layout/PublicLayout"
-import { HomePage } from "../pages/HomePage"
+import { BrowserRouter } from "react-router-dom"
 
+import { AppRoutes } from "../routes/AppRoutes"
+
+/**
+ * Root application component.
+ *
+ * BrowserRouter enables client-side navigation, which means the app can change pages
+ * without doing a full browser reload.
+ */
 export function App() {
   return (
-    <PublicLayout>
-      <HomePage />
-    </PublicLayout>
+    <BrowserRouter>
+      <AppRoutes />
+    </BrowserRouter>
   )
 }
