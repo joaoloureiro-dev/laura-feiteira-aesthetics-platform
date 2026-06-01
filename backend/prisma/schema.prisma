@@ -5,8 +5,7 @@
 // services, bookings, payments and dashboards.
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
