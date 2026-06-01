@@ -1,6 +1,6 @@
 export function Footer() {
     return (
-        <footer className="border-t border-brand-gold/10 bg-white">
+        <footer className="border-t border-brand-gold/10 bg-brand-ivory">
             <div className="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-10 text-sm text-brand-gray md:flex-row md:items-center md:justify-between">
                 <div>
                     <p className="font-semibold text-brand-charcoal">Laura Feiteira Estética</p>
