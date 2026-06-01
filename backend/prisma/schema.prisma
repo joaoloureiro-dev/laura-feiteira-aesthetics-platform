@@ -1,0 +1,210 @@
+// Prisma schema for Laura Feiteira Estética platform.
+//
+// This schema is the first database foundation.
+// We will evolve it step by step as we implement authentication,
+// services, bookings, payments and dashboards.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User roles used by the platform.
+//
+// CLIENT: normal clinic client.
+// OWNER: Laura, the clinic owner.
+// ADMIN: technical/platform administrator.
+enum UserRole {
+  CLIENT
+  OWNER
+  ADMIN
+}
+
+// Booking lifecycle status.
+//
+// PENDING: booking was created but not confirmed yet.
+// CONFIRMED: booking is accepted and blocks the time slot.
+// COMPLETED: session already happened.
+// CANCELLED: booking was cancelled.
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+// Payment status for bookings.
+//
+// UNPAID: no payment was completed.
+// PAID: payment was completed.
+// REFUNDED: payment was refunded.
+// FAILED: payment attempt failed.
+enum PaymentStatus {
+  UNPAID
+  PAID
+  REFUNDED
+  FAILED
+}
+
+// Type of appointment selected by the client.
+//
+// ONLINE_EVALUATION: evaluation happens online.
+// IN_PERSON_EVALUATION: evaluation happens in the clinic.
+// TREATMENT_SESSION: actual treatment session.
+enum AppointmentType {
+  ONLINE_EVALUATION
+  IN_PERSON_EVALUATION
+  TREATMENT_SESSION
+}
+
+// Defines if a service can be booked directly or requires evaluation.
+//
+// OPTIONAL means the client can choose evaluation or direct booking.
+// REQUIRED means the client must book an evaluation first.
+// NOT_REQUIRED means the service can be booked directly.
+enum EvaluationRequirement {
+  OPTIONAL
+  REQUIRED
+  NOT_REQUIRED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String?
+  googleId     String?  @unique
+  role         UserRole @default(CLIENT)
+
+  // Token versioning will allow us to invalidate old JWTs safely.
+  // Example: when password changes, global logout, or security reset.
+  tokenVersion Int @default(0)
+
+  bookings Booking[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+model ServiceCategory {
+  id          String  @id @default(cuid())
+  name        String
+  slug        String  @unique
+  description String?
+
+  services Service[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("service_categories")
+}
+
+model Service {
+  id          String  @id @default(cuid())
+  categoryId  String
+  name        String
+  slug        String  @unique
+  description String?
+
+  // Allows us to control whether this service requires an evaluation.
+  evaluationRequirement EvaluationRequirement @default(OPTIONAL)
+
+  // Used to show/hide services from public booking without deleting them.
+  isActive Boolean @default(true)
+
+  category ServiceCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  options  ServiceOption[]
+  bookings Booking[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("services")
+}
+
+model ServiceOption {
+  id        String @id @default(cuid())
+  serviceId String
+
+  // Examples:
+  // "Limpeza de Pele Básica"
+  // "Pack 10 sessões"
+  // "Rosto"
+  // "Corpo Todo + Braços"
+  name        String
+  description String?
+
+  // Price in cents avoids floating point issues.
+  // Example: 50€ = 5000.
+  priceCents Int?
+
+  // Allows labels such as "Desde 50€" or "Sujeito a avaliação".
+  priceLabel String?
+
+  // Approximate duration in minutes.
+  // We can adjust this later per real business rules.
+  durationMinutes Int?
+
+  isActive Boolean @default(true)
+
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("service_options")
+}
+
+model AvailabilitySlot {
+  id DateTime @id
+
+  // When true, this slot can be booked.
+  isOpen Boolean @default(true)
+
+  // Optional notes for owner/admin usage.
+  note String?
+
+  bookings Booking[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("availability_slots")
+}
+
+model Booking {
+  id String @id @default(cuid())
+
+  userId          String
+  serviceId       String
+  serviceOptionId String?
+  availabilityId  DateTime
+
+  appointmentType AppointmentType
+  status          BookingStatus @default(PENDING)
+  paymentStatus   PaymentStatus @default(UNPAID)
+
+  // Client can request online or in-person evaluation where allowed.
+  clientNotes String?
+
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  service          Service           @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  serviceOption    ServiceOption?    @relation(fields: [serviceOptionId], references: [id], onDelete: SetNull)
+  availabilitySlot AvailabilitySlot  @relation(fields: [availabilityId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Prevents two bookings from using the exact same slot.
+  @@unique([availabilityId])
+  @@map("bookings")
+}
