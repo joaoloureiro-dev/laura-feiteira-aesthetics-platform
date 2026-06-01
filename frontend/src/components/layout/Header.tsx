@@ -1,9 +1,5 @@
 import { useState } from "react"
-
-
-import logo from "../../assets/brand/laura-feiteira-logo.png"
-
-import { Link } from "react-router-dom"
+import { BrandLogo } from "./BrandLogo"
 import { routePaths } from "../../routes/routePaths"
 
 const navigationLinks = [
@@ -39,18 +35,7 @@ export function Header() {
     return (
         <header className="fixed left-0 top-0 z-50 w-full bg-brand-ivory/95 backdrop-blur-md">
             <div className="mx-auto flex h-20 max-w-6xl items-center justify-between px-6">
-                <Link
-                    to={routePaths.home}
-                    className="flex items-center gap-3"
-                    aria-label="Ir para a página inicial da Laura Feiteira Estética"
-                    onClick={closeMobileMenu}
-                >
-                    <img
-                        src={logo}
-                        alt="Laura Feiteira Estética"
-                        className="h-14 w-auto object-contain sm:h-16"
-                    />
-                </Link>
+                <BrandLogo size="md" onClick={closeMobileMenu} />
 
                 <nav
                     className="hidden items-center gap-8 text-sm font-medium text-brand-gray md:flex"
