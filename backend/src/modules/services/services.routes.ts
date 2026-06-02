@@ -1,20 +1,16 @@
+// backend/src/modules/services/services.routes.ts
 import type { FastifyInstance } from "fastify"
+import { ServicesController } from "./services.controller"
+import type { ServiceSlugParams } from "./services.types"
 
-/**
- * Services routes.
- *
- * Future responsibilities:
- * - list aesthetic services;
- * - get service details;
- * - create and update services from owner dashboard;
- * - manage prices;
- * - manage promotions.
- */
+const servicesController = new ServicesController()
+
 export async function servicesRoutes(app: FastifyInstance) {
-    app.get("/services/status", async () => {
-        return {
-            module: "services",
-            status: "ready",
-        }
-    })
+    app.get("/services", (request, reply) =>
+        servicesController.listPublicCatalog(request, reply)
+    )
+
+    app.get<{ Params: ServiceSlugParams }>("/services/:slug", (request, reply) =>
+        servicesController.getPublicServiceBySlug(request, reply)
+    )
 }
