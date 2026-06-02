@@ -1,39 +1,59 @@
+import { useEffect, useState } from "react"
 import { Button } from "../components/ui/Button"
 import { Container } from "../components/ui/Container"
 import { SectionHeading } from "../components/ui/SectionHeading"
 
-/**
- * Temporary service data used only for the first visual version of the homepage.
- *
- * Later, this data will come from the backend, because the owner dashboard
- * will allow Laura to edit services, descriptions, prices and promotions.
- */
-const featuredServices = [
-    {
-        name: "Drenagem Linfática",
-        description:
-            "Tratamento pensado para ajudar na retenção de líquidos, sensação de leveza e bem-estar corporal.",
-    },
-    {
-        name: "Massagem Modeladora",
-        description:
-            "Técnica estética focada em contorno corporal, firmeza e melhoria da aparência da pele.",
-    },
-    {
-        name: "Tratamentos Faciais",
-        description:
-            "Cuidados faciais personalizados para hidratação, luminosidade e melhoria da textura da pele.",
-    },
-]
+type ServiceOption = {
+    id: string
+    name: string
+    description?: string | null
+    priceCents?: number | null
+    priceLabel?: string | null
+    durationMinutes?: number | null
+}
 
-/**
- * Public homepage.
- *
- * This page is intentionally simple at this stage.
- * We are building the visual foundation first, then we will connect real routes,
- * authentication, booking flow and backend data step by step.
- */
+type Service = {
+    id: string
+    name: string
+    slug: string
+    description?: string | null
+    evaluationRequirement: string
+    options: ServiceOption[]
+}
+
+type ServiceCategory = {
+    id: string
+    name: string
+    slug: string
+    description?: string | null
+    services: Service[]
+}
+
 export function HomePage() {
+    const [categories, setCategories] = useState<ServiceCategory[]>([])
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
+
+    useEffect(() => {
+        const fetchServices = async () => {
+            try {
+                const res = await fetch(`${import.meta.env.VITE_API_URL}/services`)
+                if (!res.ok) throw new Error("Failed to fetch services")
+                const data = await res.json()
+                setCategories(data.data)
+            } catch (err: any) {
+                setError(err.message)
+            } finally {
+                setLoading(false)
+            }
+        }
+
+        fetchServices()
+    }, [])
+
+    if (loading) return <p className="text-center py-20">Carregando serviços...</p>
+    if (error) return <p className="text-center py-20 text-red-500">{error}</p>
+
     return (
         <main>
             <section className="flex min-h-screen items-center pb-20 pt-32">
@@ -47,8 +67,8 @@ export function HomePage() {
                     </h1>
 
                     <p className="mx-auto mt-6 max-w-2xl text-base leading-8 text-brand-gray sm:text-lg">
-                        Serviços de estética pensados para o seu bem-estar, com marcações
-                        online, área de cliente e acompanhamento personalizado.
+                        Serviços de estética pensados para o seu bem-estar, com marcações online,
+                        área de cliente e acompanhamento personalizado.
                     </p>
 
                     <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
@@ -70,40 +90,48 @@ export function HomePage() {
                             eyebrow="Serviços"
                             title="Tratamentos pensados para realçar o seu bem-estar."
                         />
-
                         <p className="text-base leading-8 text-brand-gray">
-                            Cada serviço terá uma explicação clara sobre o que faz, para que
-                            serve, benefícios, duração e um botão direto para reservar.
+                            Cada serviço terá uma explicação clara sobre o que faz, para que serve, benefícios,
+                            duração e um botão direto para reservar.
                         </p>
                     </div>
 
                     <div className="mt-12 grid gap-6 md:grid-cols-3">
-                        {featuredServices.map((service) => (
-                            <article
-                                key={service.name}
-                                className="rounded-3xl border border-brand-gold/10 bg-white/70 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
-                            >
-                                {/* Placeholder reserved for a future service image. */}
-                                <div className="mb-6 h-40 rounded-2xl bg-brand-ivory" />
-
-                                <h3 className="text-xl font-semibold text-brand-charcoal">
-                                    {service.name}
-                                </h3>
-
-                                <p className="mt-3 text-sm leading-7 text-brand-gray">
-                                    {service.description}
-                                </p>
-
-                                <Button
-                                    href="#booking"
-                                    variant="ghost"
-                                    size="sm"
-                                    className="mt-6 px-0"
+                        {categories.flatMap(category =>
+                            category.services.map(service => (
+                                <article
+                                    key={service.id}
+                                    className="rounded-3xl border border-brand-gold/10 bg-white/70 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
                                 >
-                                    Reservar sessão
-                                </Button>
-                            </article>
-                        ))}
+                                    <div className="mb-6 h-40 rounded-2xl bg-brand-ivory" />
+
+                                    <h3 className="text-xl font-semibold text-brand-charcoal">
+                                        {service.name}
+                                    </h3>
+
+                                    <p className="mt-3 text-sm leading-7 text-brand-gray">
+                                        {service.description}
+                                    </p>
+
+                                    <div className="mt-4 space-y-2">
+                                        {service.options.map(option => (
+                                            <p key={option.id} className="text-sm text-brand-gray">
+                                                {option.name} — {option.priceLabel ?? `${option.priceCents}c`}
+                                            </p>
+                                        ))}
+                                    </div>
+
+                                    <Button
+                                        href="#booking"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="mt-6 px-0"
+                                    >
+                                        Reservar sessão
+                                    </Button>
+                                </article>
+                            )),
+                        )}
                     </div>
                 </Container>
             </section>
