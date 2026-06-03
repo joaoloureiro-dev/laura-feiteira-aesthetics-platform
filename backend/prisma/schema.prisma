@@ -164,46 +164,41 @@ model ServiceOption {
 }
 
 model AvailabilitySlot {
-  id DateTime @id
+  id        String          @id @default(cuid())
+  startsAt  DateTime
+  endsAt    DateTime
+  type      AppointmentType
+  isOpen    Boolean         @default(true)
+  note      String?
 
-  // When true, this slot can be booked.
-  isOpen Boolean @default(true)
+  bookings  Booking[]
 
-  // Optional notes for owner/admin usage.
-  note String?
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
 
-  bookings Booking[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+  @@unique([startsAt, type])
   @@map("availability_slots")
 }
 
 model Booking {
-  id String @id @default(cuid())
-
-  userId          String
-  serviceId       String
-  serviceOptionId String?
-  availabilityId  DateTime
-
-  appointmentType AppointmentType
-  status          BookingStatus @default(PENDING)
-  paymentStatus   PaymentStatus @default(UNPAID)
-
-  // Client can request online or in-person evaluation where allowed.
-  clientNotes String?
+  id                String          @id @default(cuid())
+  userId            String
+  serviceId         String
+  serviceOptionId   String?
+  availabilitySlotId String
+  appointmentType   AppointmentType
+  status            BookingStatus @default(PENDING)
+  paymentStatus     PaymentStatus @default(UNPAID)
+  clientNotes       String?
 
   user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   service          Service           @relation(fields: [serviceId], references: [id], onDelete: Restrict)
   serviceOption    ServiceOption?    @relation(fields: [serviceOptionId], references: [id], onDelete: SetNull)
-  availabilitySlot AvailabilitySlot  @relation(fields: [availabilityId], references: [id], onDelete: Restrict)
+  availabilitySlot AvailabilitySlot  @relation(fields: [availabilitySlotId], references: [id], onDelete: Restrict)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Prevents two bookings from using the exact same slot.
-  @@unique([availabilityId])
+  @@unique([availabilitySlotId])
   @@map("bookings")
 }
