@@ -2,6 +2,7 @@ import "dotenv/config"
 
 import { PrismaClient } from "@prisma/client"
 
+import { seedAvailabilitySlots } from "./seed/availability.seed"
 import { serviceCategoriesSeed } from "./seed/services.seed"
 
 /**
@@ -16,8 +17,8 @@ const prisma = new PrismaClient()
  * Seeds the service catalog.
  *
  * We use upsert to make this seed idempotent.
- * That means we can run it multiple times without duplicating categories,
- * services or options.
+ * That means we can run it multiple times without duplicating categories
+ * or services.
  */
 async function seedServiceCatalog() {
   for (const category of serviceCategoriesSeed) {
@@ -91,11 +92,19 @@ async function seedServiceCatalog() {
 /**
  * Main seed function.
  *
- * Keeping the seed runner explicit makes it easier to add more seed steps later,
- * such as creating the first owner/admin user.
+ * Current seed order:
+ * 1. Service catalog
+ * 2. Test availability slots
+ *
+ * Later we can add:
+ * - first owner user;
+ * - first admin user;
+ * - default settings;
+ * - email templates.
  */
 async function main() {
   await seedServiceCatalog()
+  await seedAvailabilitySlots(prisma)
 
   console.log("Seed completed successfully.")
 }
@@ -105,10 +114,8 @@ main()
     console.error("Seed failed:", error)
 
     /**
-     * We avoid process.exit() here because some TypeScript setups
-     * may complain about Node globals when checking files outside src.
-     *
      * Throwing the error still makes the seed command fail properly.
+     * We avoid process.exit() here to keep TypeScript setups cleaner.
      */
     throw error
   })
