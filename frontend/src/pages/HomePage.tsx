@@ -1,58 +1,63 @@
-import { useEffect, useState } from "react"
-import { Button } from "../components/ui/Button"
+import { useEffect, useMemo, useState } from "react"
+
 import { Container } from "../components/ui/Container"
+import { Button } from "../components/ui/Button"
 import { SectionHeading } from "../components/ui/SectionHeading"
+import { ServiceCard } from "../features/services/components/ServiceCard"
+import { getPublicServiceCatalog } from "../features/services/services.api"
+import type { Service, ServiceCategory } from "../features/services/types/services.types"
 
-type ServiceOption = {
-    id: string
-    name: string
-    description?: string | null
-    priceCents?: number | null
-    priceLabel?: string | null
-    durationMinutes?: number | null
+type ServiceWithCategory = Service & {
+    categoryName: string
 }
 
-type Service = {
-    id: string
-    name: string
-    slug: string
-    description?: string | null
-    evaluationRequirement: string
-    options: ServiceOption[]
-}
-
-type ServiceCategory = {
-    id: string
-    name: string
-    slug: string
-    description?: string | null
-    services: Service[]
-}
-
+/**
+ * Public homepage.
+ *
+ * This page now loads the real service catalog from the backend.
+ * The homepage only shows a short preview of each service.
+ * Detailed information lives on the service detail page.
+ */
 export function HomePage() {
     const [categories, setCategories] = useState<ServiceCategory[]>([])
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
+    const [isLoading, setIsLoading] = useState(true)
+    const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
     useEffect(() => {
-        const fetchServices = async () => {
+        async function loadServices() {
             try {
-                const res = await fetch(`${import.meta.env.VITE_API_URL}/services`)
-                if (!res.ok) throw new Error("Failed to fetch services")
-                const data = await res.json()
-                setCategories(data.data)
-            } catch (err: any) {
-                setError(err.message)
+                const catalog = await getPublicServiceCatalog()
+
+                setCategories(catalog)
+            } catch (error) {
+                const message =
+                    error instanceof Error
+                        ? error.message
+                        : "Não foi possível carregar os serviços."
+
+                setErrorMessage(message)
             } finally {
-                setLoading(false)
+                setIsLoading(false)
             }
         }
 
-        fetchServices()
+        loadServices()
     }, [])
 
-    if (loading) return <p className="text-center py-20">Carregando serviços...</p>
-    if (error) return <p className="text-center py-20 text-red-500">{error}</p>
+    /**
+     * Converts category -> services into a flat list for homepage cards.
+     *
+     * We keep the category name because each card should show
+     * where the service belongs.
+     */
+    const services = useMemo<ServiceWithCategory[]>(() => {
+        return categories.flatMap((category) =>
+            category.services.map((service) => ({
+                ...service,
+                categoryName: category.name,
+            })),
+        )
+    }, [categories])
 
     return (
         <main>
@@ -67,12 +72,12 @@ export function HomePage() {
                     </h1>
 
                     <p className="mx-auto mt-6 max-w-2xl text-base leading-8 text-brand-gray sm:text-lg">
-                        Serviços de estética pensados para o seu bem-estar, com marcações online,
-                        área de cliente e acompanhamento personalizado.
+                        Serviços de estética pensados para o seu bem-estar, com marcações
+                        online, área de cliente e acompanhamento personalizado.
                     </p>
 
                     <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-                        <Button href="#booking" size="lg">
+                        <Button href="/booking" size="lg">
                             Reservar sessão
                         </Button>
 
@@ -90,49 +95,41 @@ export function HomePage() {
                             eyebrow="Serviços"
                             title="Tratamentos pensados para realçar o seu bem-estar."
                         />
+
                         <p className="text-base leading-8 text-brand-gray">
-                            Cada serviço terá uma explicação clara sobre o que faz, para que serve, benefícios,
-                            duração e um botão direto para reservar.
+                            Escolha o serviço que procura, consulte os detalhes do tratamento
+                            e avance para a marcação de forma simples e intuitiva.
                         </p>
                     </div>
 
-                    <div className="mt-12 grid gap-6 md:grid-cols-3">
-                        {categories.flatMap(category =>
-                            category.services.map(service => (
-                                <article
+                    {isLoading ? (
+                        <div className="mt-12 grid gap-6 md:grid-cols-3">
+                            {[1, 2, 3, 4, 5, 6].map((item) => (
+                                <div
+                                    key={item}
+                                    className="h-96 animate-pulse rounded-3xl bg-white/70"
+                                />
+                            ))}
+                        </div>
+                    ) : null}
+
+                    {errorMessage ? (
+                        <div className="mt-12 rounded-3xl border border-red-200 bg-white p-6 text-red-700">
+                            {errorMessage}
+                        </div>
+                    ) : null}
+
+                    {!isLoading && !errorMessage ? (
+                        <div className="mt-12 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                            {services.map((service) => (
+                                <ServiceCard
                                     key={service.id}
-                                    className="rounded-3xl border border-brand-gold/10 bg-white/70 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
-                                >
-                                    <div className="mb-6 h-40 rounded-2xl bg-brand-ivory" />
-
-                                    <h3 className="text-xl font-semibold text-brand-charcoal">
-                                        {service.name}
-                                    </h3>
-
-                                    <p className="mt-3 text-sm leading-7 text-brand-gray">
-                                        {service.description}
-                                    </p>
-
-                                    <div className="mt-4 space-y-2">
-                                        {service.options.map(option => (
-                                            <p key={option.id} className="text-sm text-brand-gray">
-                                                {option.name} — {option.priceLabel ?? `${option.priceCents}c`}
-                                            </p>
-                                        ))}
-                                    </div>
-
-                                    <Button
-                                        href="#booking"
-                                        variant="ghost"
-                                        size="sm"
-                                        className="mt-6 px-0"
-                                    >
-                                        Reservar sessão
-                                    </Button>
-                                </article>
-                            )),
-                        )}
-                    </div>
+                                    service={service}
+                                    categoryName={service.categoryName}
+                                />
+                            ))}
+                        </div>
+                    ) : null}
                 </Container>
             </section>
         </main>

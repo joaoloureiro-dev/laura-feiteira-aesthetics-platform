@@ -9,6 +9,10 @@ export const routePaths = {
     home: "/",
     login: "/login",
 
+    services: "/services",
+    serviceDetails: "/services/:slug",
+    booking: "/booking",
+
     clientDashboard: "/client/dashboard",
 
     ownerDashboard: "/owner/dashboard",

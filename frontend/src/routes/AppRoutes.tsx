@@ -9,6 +9,8 @@ import { HomePage } from "../pages/HomePage"
 import { LoginPage } from "../pages/LoginPage"
 import { NotFoundPage } from "../pages/NotFoundPage"
 import { routePaths } from "./routePaths"
+import { BookingPage } from "../pages/BookingPage"
+import { ServiceDetailsPage } from "../features/services/pages/ServiceDetailsPage"
 
 /**
  * Main application routes.
@@ -65,6 +67,23 @@ export function AppRoutes() {
                     <DashboardLayout roleLabel="Admin">
                         <AdminDashboardPage />
                     </DashboardLayout>
+                }
+            />
+            <Route
+                path={routePaths.serviceDetails}
+                element={
+                    <PublicLayout>
+                        <ServiceDetailsPage />
+                    </PublicLayout>
+                }
+            />
+
+            <Route
+                path={routePaths.booking}
+                element={
+                    <PublicLayout>
+                        <BookingPage />
+                    </PublicLayout>
                 }
             />
 
