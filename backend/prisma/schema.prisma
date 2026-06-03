@@ -164,41 +164,57 @@ model ServiceOption {
 }
 
 model AvailabilitySlot {
-  id        String          @id @default(cuid())
-  startsAt  DateTime
-  endsAt    DateTime
-  type      AppointmentType
-  isOpen    Boolean         @default(true)
-  note      String?
+  id String @id @default(cuid())
 
-  bookings  Booking[]
+  startsAt DateTime
+  endsAt   DateTime
 
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
+  appointmentType AppointmentType
 
-  @@unique([startsAt, type])
+  isOpen Boolean @default(true)
+  note   String?
+
+  bookings Booking[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([startsAt, appointmentType])
+  @@index([startsAt])
+  @@index([appointmentType])
+  @@index([isOpen])
+
   @@map("availability_slots")
 }
 
 model Booking {
-  id                String          @id @default(cuid())
-  userId            String
-  serviceId         String
-  serviceOptionId   String?
-  availabilitySlotId String
-  appointmentType   AppointmentType
-  status            BookingStatus @default(PENDING)
-  paymentStatus     PaymentStatus @default(UNPAID)
-  clientNotes       String?
+  id String @id @default(cuid())
 
-  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  service          Service           @relation(fields: [serviceId], references: [id], onDelete: Restrict)
-  serviceOption    ServiceOption?    @relation(fields: [serviceOptionId], references: [id], onDelete: SetNull)
-  availabilitySlot AvailabilitySlot  @relation(fields: [availabilitySlotId], references: [id], onDelete: Restrict)
+  userId             String
+  serviceId          String
+  serviceOptionId    String?
+  availabilitySlotId String
+
+  appointmentType AppointmentType
+
+  status        BookingStatus @default(PENDING)
+  paymentStatus PaymentStatus @default(UNPAID)
+
+  clientNotes String?
+
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  service          Service          @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  serviceOption    ServiceOption?   @relation(fields: [serviceOptionId], references: [id], onDelete: SetNull)
+  availabilitySlot AvailabilitySlot @relation(fields: [availabilitySlotId], references: [id], onDelete: Restrict)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([availabilitySlotId])
+  @@index([userId])
+  @@index([serviceId])
+  @@index([status])
+  @@index([appointmentType])
+
   @@map("bookings")
 }

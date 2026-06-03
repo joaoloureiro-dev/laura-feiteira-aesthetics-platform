@@ -27,3 +27,11 @@ export type ServiceCategory = {
 export type ApiResponse<T> = {
     data: T
 }
+export type AvailabilitySlot = {
+    id: string
+    startsAt: string // ou Date se fores converter
+    endsAt: string   // ou Date
+    appointmentType: "ONLINE_EVALUATION" | "IN_PERSON_EVALUATION" | "TREATMENT_SESSION"
+    isOpen: boolean
+    note?: string
+}

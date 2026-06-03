@@ -1,20 +1,33 @@
 import type { FastifyInstance } from "fastify"
 
+import { BookingsController } from "./bookings.controller"
+import type {
+    ConfirmPaymentBody,
+    CreatePendingBookingBody,
+} from "./bookings.types"
+
+const bookingsController = new BookingsController()
+
 /**
  * Booking routes.
  *
- * Future responsibilities:
- * - create bookings;
- * - list client bookings;
- * - list owner bookings;
- * - cancel or reschedule bookings;
- * - prevent double booking for the same date and time.
+ * POST /bookings:
+ * Creates a PENDING + UNPAID booking and returns a temporary checkout URL.
+ *
+ * POST /bookings/confirm-payment:
+ * Temporarily confirms payment.
+ * Later this must be triggered by the payment provider webhook.
  */
 export async function bookingsRoutes(app: FastifyInstance) {
-    app.get("/bookings/status", async () => {
-        return {
-            module: "bookings",
-            status: "ready",
-        }
-    })
+    app.post<{
+        Body: CreatePendingBookingBody
+    }>("/bookings", (request, reply) =>
+        bookingsController.createPendingBooking(request, reply),
+    )
+
+    app.post<{
+        Body: ConfirmPaymentBody
+    }>("/bookings/confirm-payment", (request, reply) =>
+        bookingsController.confirmPayment(request, reply),
+    )
 }
