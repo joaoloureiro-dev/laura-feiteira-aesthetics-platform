@@ -8,11 +8,15 @@ import { registerRoutes } from "./routes"
 /**
  * Builds the Fastify application.
  *
- * Why we use a function:
- * This makes the app easier to test later, because tests can create
- * an app instance without starting the real HTTP server.
+ * This file is responsible for global app configuration:
+ * - logger;
+ * - security headers;
+ * - CORS;
+ * - route registry.
+ *
+ * Individual module routes should be registered only inside ./routes.
  */
-export function buildApp() {
+export async function buildApp() {
     const app = fastify({
         logger: {
             level: env.NODE_ENV === "production" ? "info" : "debug",
@@ -21,24 +25,31 @@ export function buildApp() {
 
     /**
      * Helmet adds useful security headers to API responses.
-     * This is a standard production security practice.
      */
-    app.register(helmet)
+    await app.register(helmet)
 
     /**
-     * CORS controls which frontend can access this backend.
-     * Locally we allow http://localhost:5173.
+     * CORS controls which frontend is allowed to call this backend.
+     *
+     * In development:
+     * FRONTEND_URL=http://localhost:5173
+     *
+     * In production:
+     * FRONTEND_URL=https://your-vercel-domain.com
      */
-    app.register(cors, {
+    await app.register(cors, {
         origin: env.FRONTEND_URL,
         credentials: true,
     })
 
     /**
-     * Register all API routes from a central route registry.
-     * This keeps app.ts focused on application setup.
+     * Register all application routes from the central route registry.
+     *
+     * Important:
+     * Do not register authRoutes, servicesRoutes, bookingsRoutes, etc.
+     * directly here, otherwise Fastify will throw duplicated route errors.
      */
-    app.register(registerRoutes)
+    await app.register(registerRoutes)
 
     return app
 }

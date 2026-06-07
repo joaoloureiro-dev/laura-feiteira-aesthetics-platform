@@ -1,21 +1,36 @@
 import type { FastifyInstance } from "fastify"
 
+import { AuthController } from "./auth.controller"
+import { requireAuth } from "./auth.middleware"
+import type { LoginBody, RegisterBody } from "./auth.types"
+
+const authController = new AuthController()
+
 /**
- * Authentication routes.
+ * Auth routes.
  *
- * Future responsibilities:
- * - register clients;
- * - login with email and password;
- * - login with Google OAuth;
- * - refresh JWT tokens;
- * - logout;
- * - recover password.
+ * Public:
+ * - POST /auth/register
+ * - POST /auth/login
+ *
+ * Protected:
+ * - GET /auth/me
  */
 export async function authRoutes(app: FastifyInstance) {
-    app.get("/auth/status", async () => {
-        return {
-            module: "auth",
-            status: "ready",
-        }
+    app.post<{
+        Body: RegisterBody
+    }>("/auth/register", (request, reply) =>
+        authController.register(request, reply),
+    )
+
+    app.post<{
+        Body: LoginBody
+    }>("/auth/login", (request, reply) =>
+        authController.login(request, reply),
+    )
+
+    app.get("/auth/me", {
+        preHandler: requireAuth(),
+        handler: (request, reply) => authController.me(request, reply),
     })
 }

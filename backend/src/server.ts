@@ -1,14 +1,8 @@
 import { buildApp } from "./app"
 import { env } from "./config/env"
 
-/**
- * Starts the HTTP server.
- *
- * This file should be responsible only for starting the app.
- * The app configuration itself stays inside app.ts.
- */
 async function startServer() {
-    const app = buildApp()
+    const app = await buildApp() // <-- await aqui, porque buildApp agora é async
 
     try {
         await app.listen({
@@ -19,11 +13,6 @@ async function startServer() {
         app.log.info(`API running on port ${env.PORT}`)
     } catch (error) {
         app.log.error(error)
-
-        /**
-         * If the server cannot start, we exit the process with code 1.
-         * This is important for deployment platforms to detect failure.
-         */
         process.exit(1)
     }
 }
