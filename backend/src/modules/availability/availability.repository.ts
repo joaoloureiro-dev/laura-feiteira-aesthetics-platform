@@ -8,13 +8,6 @@ type FindAvailableSlotsParams = {
     to?: Date
 }
 
-/**
- * Repository responsible for availability database access.
- *
- * Important:
- * This layer only talks to Prisma.
- * Business rules stay in availability.service.ts.
- */
 export class AvailabilityRepository {
     async findAvailableSlots({ type, from, to }: FindAvailableSlotsParams) {
         const where: Prisma.AvailabilitySlotWhereInput = {
@@ -23,7 +16,7 @@ export class AvailabilityRepository {
                 gte: from ?? new Date(),
                 ...(to ? { lte: to } : {}),
             },
-            ...(type ? { type } : {}),
+            ...(type ? { appointmentType: type } : {}),
         }
 
         return prisma.availabilitySlot.findMany({

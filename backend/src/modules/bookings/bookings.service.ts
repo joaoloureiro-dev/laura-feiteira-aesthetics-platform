@@ -32,11 +32,14 @@ export class BookingsService {
             throw new Error("AVAILABILITY_SLOT_NOT_AVAILABLE")
         }
 
-        if (slot.type !== data.appointmentType) {
+        if (slot.appointmentType !== data.appointmentType) {
             throw new Error("INVALID_APPOINTMENT_TYPE_FOR_SLOT")
         }
 
-        const booking = await bookingsRepository.createPendingBooking(data)
+        const booking = await bookingsRepository.createPendingBooking({
+            ...data,
+            professionalId: slot.professionalId,
+        })
 
         /**
          * Temporary checkout URL.

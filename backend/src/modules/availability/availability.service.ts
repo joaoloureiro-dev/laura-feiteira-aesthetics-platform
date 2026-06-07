@@ -72,7 +72,7 @@ export class AvailabilityService {
             id: slot.id,
             startsAt: slot.startsAt.toISOString(),
             endsAt: slot.endsAt.toISOString(),
-            appointmentType: slot.type,
+            appointmentType: slot.appointmentType,
             isOpen: slot.isOpen,
             note: slot.note,
         }))

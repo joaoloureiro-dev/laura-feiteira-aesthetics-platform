@@ -24,9 +24,9 @@ type CreatePendingBookingResponse = {
 }
 
 /**
- * Converts appointment type into readable text.
+ * Converts the appointment type from the URL into user-friendly text.
  */
-function getAppointmentTypeLabel(appointmentType: string | null) {
+function getAppointmentTypeLabel(appointmentType: AppointmentType) {
     if (appointmentType === "ONLINE_EVALUATION") {
         return "Avaliação por videochamada"
     }
@@ -35,19 +35,13 @@ function getAppointmentTypeLabel(appointmentType: string | null) {
         return "Avaliação presencial"
     }
 
-    if (appointmentType === "TREATMENT_SESSION") {
-        return "Sessão/tratamento"
-    }
-
-    return "Tipo de marcação não selecionado"
+    return "Sessão/tratamento"
 }
 
 /**
- * Validates appointment type from URL.
+ * Validates the appointmentType query param.
  *
- * If the URL does not include appointmentType, we default to TREATMENT_SESSION.
- * Example:
- * /booking?service=drenagem-linfatica
+ * If the URL has no appointment type, we use TREATMENT_SESSION as default.
  */
 function getValidAppointmentType(value: string | null): AppointmentType {
     if (
@@ -62,16 +56,16 @@ function getValidAppointmentType(value: string | null): AppointmentType {
 }
 
 /**
- * Temporary local user id.
+ * Temporary test user id.
  *
- * Important:
- * The real production flow must use the authenticated user id from JWT.
- * For now, this is only to let us test the booking endpoint locally.
+ * For now, we still do not have JWT authentication finished.
+ * So, for local testing, this value comes from frontend/.env.
  *
- * Add this to frontend/.env only for local tests:
- * VITE_TEST_USER_ID=your_test_user_id_from_neon
+ * Later:
+ * - remove this;
+ * - get the user id from the authenticated JWT session.
  */
-const TEST_USER_ID = import.meta.env.VITE_TEST_USER_ID
+const TEST_USER_ID = import.meta.env.VITE_TEST_USER_ID as string | undefined
 
 export function BookingPage() {
     const [searchParams] = useSearchParams()
@@ -84,25 +78,32 @@ export function BookingPage() {
     const [service, setService] = useState<Service | null>(null)
     const [slots, setSlots] = useState<AvailabilitySlot[]>([])
     const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null)
+
+    const [isLoading, setIsLoading] = useState(true)
     const [isSubmitting, setIsSubmitting] = useState(false)
-    const [loading, setLoading] = useState(true)
     const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
     useEffect(() => {
         async function loadBookingData() {
             if (!serviceSlug) {
                 setErrorMessage("Serviço não selecionado.")
-                setLoading(false)
+                setIsLoading(false)
                 return
             }
 
             try {
+                setIsLoading(true)
+                setErrorMessage(null)
+
+                /**
+                 * Load selected service.
+                 */
                 const serviceResponse = await fetch(
                     `${API_BASE_URL}/services/${serviceSlug}`,
                 )
 
                 if (!serviceResponse.ok) {
-                    throw new Error("Não foi possível carregar o serviço.")
+                    throw new Error("Não foi possível carregar o serviço selecionado.")
                 }
 
                 const servicePayload =
@@ -110,6 +111,12 @@ export function BookingPage() {
 
                 setService(servicePayload.data)
 
+                /**
+                 * Load available slots filtered by appointment type.
+                 *
+                 * Example:
+                 * /availability?type=ONLINE_EVALUATION
+                 */
                 const availabilityResponse = await fetch(
                     `${API_BASE_URL}/availability?type=${appointmentType}&serviceSlug=${serviceSlug}`,
                 )
@@ -130,7 +137,7 @@ export function BookingPage() {
 
                 setErrorMessage(message)
             } finally {
-                setLoading(false)
+                setIsLoading(false)
             }
         }
 
@@ -150,7 +157,7 @@ export function BookingPage() {
 
         if (!TEST_USER_ID) {
             setErrorMessage(
-                "Ainda não existe utilizador autenticado. Para teste local, adiciona VITE_TEST_USER_ID no frontend/.env. Em produção, este valor virá do JWT.",
+                "Ainda não existe utilizador autenticado. Para teste local, adiciona VITE_TEST_USER_ID no frontend/.env. Depois vamos substituir isto pelo JWT.",
             )
             return
         }
@@ -159,6 +166,13 @@ export function BookingPage() {
             setIsSubmitting(true)
             setErrorMessage(null)
 
+            /**
+             * Creates a PENDING + UNPAID booking.
+             *
+             * Important:
+             * The slot is NOT closed yet.
+             * It will only close after payment confirmation.
+             */
             const response = await fetch(`${API_BASE_URL}/bookings`, {
                 method: "POST",
                 headers: {
@@ -181,13 +195,13 @@ export function BookingPage() {
                 (await response.json()) as ApiResponse<CreatePendingBookingResponse>
 
             /**
-             * Temporary payment redirect.
+             * Temporary checkout redirect.
              *
-             * Later, checkoutUrl will come from Stripe/PayPal.
-             * After successful payment, the backend will:
-             * - confirm the booking;
-             * - close the slot;
-             * - send the confirmation email.
+             * Later:
+             * - Stripe/PayPal returns the real checkout URL;
+             * - payment webhook confirms booking;
+             * - backend closes slot;
+             * - backend sends confirmation email.
              */
             window.location.href = payload.data.checkoutUrl
         } catch (error) {
@@ -202,12 +216,12 @@ export function BookingPage() {
         }
     }
 
-    if (loading) {
+    if (isLoading) {
         return (
             <main className="min-h-screen bg-brand-ivory pt-32">
                 <Container>
                     <div className="mx-auto max-w-4xl rounded-3xl bg-white/90 p-8 shadow-sm">
-                        <div className="h-64 animate-pulse rounded-3xl bg-brand-ivory" />
+                        <div className="h-72 animate-pulse rounded-3xl bg-brand-ivory" />
                     </div>
                 </Container>
             </main>
@@ -227,10 +241,9 @@ export function BookingPage() {
                     </h1>
 
                     <p className="mt-5 leading-8 text-brand-gray">
-                        Escolha um horário disponível. A vaga fica pendente até ao
-                        pagamento. Após o pagamento, a marcação será confirmada, a vaga será
-                        fechada na agenda e o cliente receberá um email automático de
-                        confirmação.
+                        Escolha um horário disponível. A vaga fica pendente até ao pagamento.
+                        Após o pagamento, a marcação será confirmada, a vaga será fechada na
+                        agenda e o cliente receberá um email automático de confirmação.
                     </p>
 
                     {errorMessage ? (
@@ -239,55 +252,62 @@ export function BookingPage() {
                         </div>
                     ) : null}
 
-                    <div className="mt-8 grid gap-4">
-                        {slots.length === 0 ? (
-                            <p className="rounded-2xl bg-brand-ivory p-4 text-center text-sm text-brand-gray">
-                                Nenhum horário disponível para este tipo de marcação.
-                            </p>
-                        ) : (
-                            slots.map((slot) => {
-                                const isSelected = selectedSlotId === slot.id
+                    <section className="mt-10">
+                        <h2 className="text-xl font-semibold text-brand-charcoal">
+                            Horários disponíveis
+                        </h2>
 
-                                return (
-                                    <button
-                                        key={slot.id}
-                                        type="button"
-                                        className={`rounded-2xl border p-4 text-left transition ${isSelected
-                                                ? "border-brand-gold bg-brand-ivory"
-                                                : "border-brand-gold/10 bg-white hover:border-brand-gold/40"
-                                            }`}
-                                        onClick={() => setSelectedSlotId(slot.id)}
-                                    >
-                                        <p className="font-semibold text-brand-charcoal">
-                                            {new Date(slot.startsAt).toLocaleDateString("pt-PT", {
-                                                weekday: "long",
-                                                day: "2-digit",
-                                                month: "long",
-                                            })}
-                                        </p>
+                        <div className="mt-5 grid gap-4">
+                            {slots.length === 0 ? (
+                                <p className="rounded-2xl bg-brand-ivory p-4 text-center text-sm text-brand-gray">
+                                    Nenhum horário disponível para este tipo de marcação.
+                                </p>
+                            ) : (
+                                slots.map((slot) => {
+                                    const isSelected = selectedSlotId === slot.id
 
-                                        <p className="mt-1 text-sm text-brand-gray">
-                                            {new Date(slot.startsAt).toLocaleTimeString("pt-PT", {
-                                                hour: "2-digit",
-                                                minute: "2-digit",
-                                            })}{" "}
-                                            -{" "}
-                                            {new Date(slot.endsAt).toLocaleTimeString("pt-PT", {
-                                                hour: "2-digit",
-                                                minute: "2-digit",
-                                            })}
-                                        </p>
-
-                                        {slot.note ? (
-                                            <p className="mt-2 text-xs text-brand-gray">
-                                                {slot.note}
+                                    return (
+                                        <button
+                                            key={slot.id}
+                                            type="button"
+                                            className={`rounded-2xl border p-4 text-left transition ${isSelected
+                                                    ? "border-brand-gold bg-brand-ivory"
+                                                    : "border-brand-gold/10 bg-white hover:border-brand-gold/40"
+                                                }`}
+                                            onClick={() => setSelectedSlotId(slot.id)}
+                                        >
+                                            <p className="font-semibold capitalize text-brand-charcoal">
+                                                {new Date(slot.startsAt).toLocaleDateString("pt-PT", {
+                                                    weekday: "long",
+                                                    day: "2-digit",
+                                                    month: "long",
+                                                    year: "numeric",
+                                                })}
                                             </p>
-                                        ) : null}
-                                    </button>
-                                )
-                            })
-                        )}
-                    </div>
+
+                                            <p className="mt-1 text-sm text-brand-gray">
+                                                {new Date(slot.startsAt).toLocaleTimeString("pt-PT", {
+                                                    hour: "2-digit",
+                                                    minute: "2-digit",
+                                                })}{" "}
+                                                -{" "}
+                                                {new Date(slot.endsAt).toLocaleTimeString("pt-PT", {
+                                                    hour: "2-digit",
+                                                    minute: "2-digit",
+                                                })}
+                                            </p>
+
+                                            {slot.note ? (
+                                                <p className="mt-2 text-xs text-brand-gray">
+                                                    {slot.note}
+                                                </p>
+                                            ) : null}
+                                        </button>
+                                    )
+                                })
+                            )}
+                        </div>
+                    </section>
 
                     <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                         <Button
@@ -295,7 +315,9 @@ export function BookingPage() {
                             onClick={handleCreatePendingBooking}
                             disabled={!selectedSlotId || isSubmitting}
                         >
-                            {isSubmitting ? "A preparar pagamento..." : "Continuar para pagamento"}
+                            {isSubmitting
+                                ? "A preparar pagamento..."
+                                : "Continuar para pagamento"}
                         </Button>
 
                         <Button href="/" variant="secondary">

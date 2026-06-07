@@ -18,12 +18,17 @@ export class BookingsRepository {
         })
     }
 
-    async createPendingBooking(data: CreatePendingBookingBody) {
+    async createPendingBooking(
+        data: CreatePendingBookingBody & {
+            professionalId: string
+        },
+    ) {
         return prisma.booking.create({
             data: {
                 userId: data.userId,
                 serviceId: data.serviceId,
                 serviceOptionId: data.serviceOptionId ?? null,
+                professionalId: data.professionalId,
                 availabilitySlotId: data.availabilitySlotId,
                 appointmentType: data.appointmentType,
                 status: "PENDING",

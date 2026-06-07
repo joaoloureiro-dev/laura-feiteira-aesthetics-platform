@@ -14,13 +14,45 @@ import { serviceCategoriesSeed } from "./seed/services.seed"
 const prisma = new PrismaClient()
 
 /**
+ * Seeds the default professional.
+ *
+ * For now, all services are performed by Laura Feiteira.
+ * Later, the owner dashboard can create more professionals and assign
+ * them only to the services they provide.
+ */
+async function seedProfessionals() {
+  const laura = await prisma.professional.upsert({
+    where: {
+      slug: "laura-feiteira",
+    },
+    update: {
+      name: "Laura Feiteira",
+      email: "laura.feiteira@local.test",
+      isActive: true,
+    },
+    create: {
+      name: "Laura Feiteira",
+      slug: "laura-feiteira",
+      email: "laura.feiteira@local.test",
+      isActive: true,
+    },
+  })
+
+  return {
+    laura,
+  }
+}
+
+/**
  * Seeds the service catalog.
  *
  * We use upsert to make this seed idempotent.
  * That means we can run it multiple times without duplicating categories
  * or services.
+ *
+ * Every service is currently associated with Laura Feiteira.
  */
-async function seedServiceCatalog() {
+async function seedServiceCatalog(professionalId: string) {
   for (const category of serviceCategoriesSeed) {
     const createdCategory = await prisma.serviceCategory.upsert({
       where: {
@@ -60,6 +92,25 @@ async function seedServiceCatalog() {
       })
 
       /**
+       * Associate the service with Laura Feiteira.
+       *
+       * This prepares the platform for future professional selection.
+       */
+      await prisma.serviceProfessional.upsert({
+        where: {
+          serviceId_professionalId: {
+            serviceId: createdService.id,
+            professionalId,
+          },
+        },
+        update: {},
+        create: {
+          serviceId: createdService.id,
+          professionalId,
+        },
+      })
+
+      /**
        * Service options do not currently have a slug or unique field.
        *
        * For this seed, we remove the existing options for the service
@@ -93,8 +144,9 @@ async function seedServiceCatalog() {
  * Main seed function.
  *
  * Current seed order:
- * 1. Service catalog
- * 2. Test availability slots
+ * 1. Professionals
+ * 2. Service catalog
+ * 3. Test availability slots
  *
  * Later we can add:
  * - first owner user;
@@ -103,8 +155,10 @@ async function seedServiceCatalog() {
  * - email templates.
  */
 async function main() {
-  await seedServiceCatalog()
-  await seedAvailabilitySlots(prisma)
+  const { laura } = await seedProfessionals()
+
+  await seedServiceCatalog(laura.id)
+  await seedAvailabilitySlots(prisma, laura.id)
 
   console.log("Seed completed successfully.")
 }
