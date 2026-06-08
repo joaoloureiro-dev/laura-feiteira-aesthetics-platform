@@ -15,8 +15,19 @@ const bookingsService = new BookingsService()
  * - request body;
  * - response status;
  * - error response shape.
+ *
+ * Business rules stay inside bookings.service.ts.
  */
 export class BookingsController {
+    /**
+     * POST /bookings
+     *
+     * Creates a booking.
+     *
+     * Rules:
+     * - ONLINE_EVALUATION and IN_PERSON_EVALUATION are confirmed immediately.
+     * - TREATMENT_SESSION stays pending until payment.
+     */
     async createPendingBooking(
         request: FastifyRequest<{
             Body: CreatePendingBookingBody
@@ -35,12 +46,14 @@ export class BookingsController {
 
             if (
                 message === "AVAILABILITY_SLOT_NOT_AVAILABLE" ||
-                message === "INVALID_APPOINTMENT_TYPE_FOR_SLOT"
+                message === "INVALID_APPOINTMENT_TYPE_FOR_SLOT" ||
+                message === "INVALID_PROFESSIONAL_FOR_SLOT" ||
+                message === "PROFESSIONAL_DOES_NOT_PROVIDE_SERVICE"
             ) {
                 return reply.status(409).send({
                     error: {
                         code: message,
-                        message: "The selected slot is not available for this booking.",
+                        message: "The selected booking option is not available.",
                     },
                 })
             }
@@ -54,6 +67,14 @@ export class BookingsController {
         }
     }
 
+    /**
+     * POST /bookings/confirm-payment
+     *
+     * Temporary endpoint for confirming payment.
+     *
+     * Later this should be called by the payment provider webhook,
+     * not manually from the frontend.
+     */
     async confirmPayment(
         request: FastifyRequest<{
             Body: ConfirmPaymentBody

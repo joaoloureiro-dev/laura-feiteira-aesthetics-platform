@@ -1,3 +1,5 @@
+import type { AppointmentType } from "@prisma/client"
+
 import { env } from "../../config/env"
 import { EmailsService } from "../emails/emails.service"
 import { BookingsRepository } from "./bookings.repository"
@@ -9,20 +11,23 @@ import type {
 const bookingsRepository = new BookingsRepository()
 const emailsService = new EmailsService()
 
+function isEvaluation(appointmentType: AppointmentType) {
+    return (
+        appointmentType === "ONLINE_EVALUATION" ||
+        appointmentType === "IN_PERSON_EVALUATION"
+    )
+}
+
 /**
  * Business layer for booking logic.
  *
- * Important business rule:
- * A booking only becomes CONFIRMED after payment.
- * The availability slot only closes after payment confirmation.
+ * Rules:
+ * - Online/presential evaluations are free and confirmed immediately.
+ * - Treatment sessions stay PENDING until payment.
+ * - A slot can only be used by the professional assigned to it.
+ * - A professional must be assigned to the selected service.
  */
 export class BookingsService {
-    /**
-     * Creates a booking before payment.
-     *
-     * The slot is checked, but it is not closed yet.
-     * Later, when payment is confirmed, we close the slot.
-     */
     async createPendingBooking(data: CreatePendingBookingBody) {
         const slot = await bookingsRepository.findAvailabilitySlotById(
             data.availabilitySlotId,
@@ -36,34 +41,59 @@ export class BookingsService {
             throw new Error("INVALID_APPOINTMENT_TYPE_FOR_SLOT")
         }
 
-        const booking = await bookingsRepository.createPendingBooking({
-            ...data,
-            professionalId: slot.professionalId,
-        })
+        if (slot.professionalId !== data.professionalId) {
+            throw new Error("INVALID_PROFESSIONAL_FOR_SLOT")
+        }
+
+        const serviceProfessional =
+            await bookingsRepository.findServiceProfessional(
+                data.serviceId,
+                data.professionalId,
+            )
+
+        if (!serviceProfessional) {
+            throw new Error("PROFESSIONAL_DOES_NOT_PROVIDE_SERVICE")
+        }
 
         /**
-         * Temporary checkout URL.
-         *
-         * Later:
-         * This URL must come from Stripe/PayPal/another payment provider.
+         * Evaluations do not require payment.
+         * They are confirmed immediately and the slot closes immediately.
          */
+        if (isEvaluation(data.appointmentType)) {
+            const booking =
+                await bookingsRepository.createConfirmedEvaluationBooking(data)
+
+            await emailsService.sendBookingConfirmationEmail({
+                to: booking.user.email,
+                clientName: booking.user.name,
+                serviceName: booking.service.name,
+                appointmentType: booking.appointmentType,
+                startsAt: booking.availabilitySlot.startsAt,
+                endsAt: booking.availabilitySlot.endsAt,
+            })
+
+            return {
+                booking,
+                checkoutUrl: null,
+                requiresPayment: false,
+            }
+        }
+
+        /**
+         * Treatment sessions require payment.
+         * The slot will only close after payment confirmation.
+         */
+        const booking = await bookingsRepository.createPendingTreatmentBooking(data)
+
         const checkoutUrl = `${env.FRONTEND_URL}/payment/checkout?booking=${booking.id}`
 
         return {
             booking,
             checkoutUrl,
+            requiresPayment: true,
         }
     }
 
-    /**
-     * Confirms payment.
-     *
-     * After payment:
-     * - booking becomes CONFIRMED;
-     * - paymentStatus becomes PAID;
-     * - availability slot is closed;
-     * - client receives automatic confirmation email.
-     */
     async confirmPayment(data: ConfirmPaymentBody) {
         const booking = await bookingsRepository.confirmPaidBooking(data.bookingId)
 

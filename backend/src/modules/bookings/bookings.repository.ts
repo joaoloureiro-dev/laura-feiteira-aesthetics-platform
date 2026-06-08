@@ -1,13 +1,11 @@
 import { prisma } from "../../database/prisma"
-
 import type { CreatePendingBookingBody } from "./bookings.types"
 
 /**
  * Repository responsible for booking database operations.
  *
- * Rules:
- * - Repositories talk to Prisma.
- * - Business rules stay in the service layer.
+ * Repositories only talk to Prisma.
+ * Business rules stay in bookings.service.ts.
  */
 export class BookingsRepository {
     async findAvailabilitySlotById(id: string) {
@@ -18,11 +16,23 @@ export class BookingsRepository {
         })
     }
 
-    async createPendingBooking(
-        data: CreatePendingBookingBody & {
-            professionalId: string
-        },
-    ) {
+    async findServiceProfessional(serviceId: string, professionalId: string) {
+        return prisma.serviceProfessional.findUnique({
+            where: {
+                serviceId_professionalId: {
+                    serviceId,
+                    professionalId,
+                },
+            },
+        })
+    }
+
+    /**
+     * Creates a treatment session booking before payment.
+     *
+     * Treatment sessions are PENDING + UNPAID until payment is confirmed.
+     */
+    async createPendingTreatmentBooking(data: CreatePendingBookingBody) {
         return prisma.booking.create({
             data: {
                 userId: data.userId,
@@ -39,11 +49,48 @@ export class BookingsRepository {
     }
 
     /**
-     * Confirms a paid booking and closes the selected slot.
+     * Creates a free evaluation booking and closes the slot immediately.
      *
-     * This must happen in one transaction because we do not want:
-     * - booking confirmed but slot still open;
-     * - slot closed but booking not confirmed.
+     * Evaluations do not require payment.
+     */
+    async createConfirmedEvaluationBooking(data: CreatePendingBookingBody) {
+        return prisma.$transaction(async (tx) => {
+            const booking = await tx.booking.create({
+                data: {
+                    userId: data.userId,
+                    serviceId: data.serviceId,
+                    serviceOptionId: data.serviceOptionId ?? null,
+                    professionalId: data.professionalId,
+                    availabilitySlotId: data.availabilitySlotId,
+                    appointmentType: data.appointmentType,
+                    status: "CONFIRMED",
+                    paymentStatus: "UNPAID",
+                    clientNotes: data.clientNotes,
+                },
+                include: {
+                    user: true,
+                    service: true,
+                    serviceOption: true,
+                    professional: true,
+                    availabilitySlot: true,
+                },
+            })
+
+            await tx.availabilitySlot.update({
+                where: {
+                    id: data.availabilitySlotId,
+                },
+                data: {
+                    isOpen: false,
+                },
+            })
+
+            return booking
+        })
+    }
+
+    /**
+     * Confirms a paid treatment booking and closes the selected slot.
      */
     async confirmPaidBooking(bookingId: string) {
         return prisma.$transaction(async (tx) => {
@@ -59,6 +106,7 @@ export class BookingsRepository {
                     user: true,
                     service: true,
                     serviceOption: true,
+                    professional: true,
                     availabilitySlot: true,
                 },
             })

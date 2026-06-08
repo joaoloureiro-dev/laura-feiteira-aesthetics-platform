@@ -14,11 +14,12 @@ import type {
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3333"
 const TEST_USER_ID = import.meta.env.VITE_TEST_USER_ID as string | undefined
 
-type CreatePendingBookingResponse = {
+type CreateBookingResponse = {
     booking: {
         id: string
     }
-    checkoutUrl?: string
+    checkoutUrl: string | null
+    requiresPayment: boolean
 }
 
 function getValidAppointmentType(value: string | null): AppointmentType {
@@ -96,10 +97,6 @@ export function BookingPage() {
 
                 setService(servicePayload.data)
 
-                /**
-                 * If there is only one professional, select it automatically.
-                 * For now, this should be Laura Feiteira.
-                 */
                 if (servicePayload.data.professionals.length === 1) {
                     setSelectedProfessionalId(servicePayload.data.professionals[0].id)
                 }
@@ -179,23 +176,15 @@ export function BookingPage() {
             }
 
             const payload =
-                (await response.json()) as ApiResponse<CreatePendingBookingResponse>
+                (await response.json()) as ApiResponse<CreateBookingResponse>
 
-            /**
-             * Evaluations do not require payment.
-             * They should be confirmed directly by the backend.
-             */
-            if (isEvaluation(appointmentType)) {
+            if (!payload.data.requiresPayment) {
                 setSuccessMessage(
                     "A sua avaliação foi marcada com sucesso. Receberá a confirmação por email.",
                 )
-
                 return
             }
 
-            /**
-             * Treatment sessions continue to payment.
-             */
             if (payload.data.checkoutUrl) {
                 window.location.href = payload.data.checkoutUrl
                 return
