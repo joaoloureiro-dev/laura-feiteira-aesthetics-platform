@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify"
 
+import { requireAuth } from "../auth/auth.middleware"
 import { BookingsController } from "./bookings.controller"
 import type {
     ConfirmPaymentBody,
@@ -12,7 +13,11 @@ const bookingsController = new BookingsController()
  * Booking routes.
  *
  * POST /bookings:
- * Creates a PENDING + UNPAID booking and returns a temporary checkout URL.
+ * Creates a booking for the authenticated CLIENT.
+ *
+ * Rules:
+ * - ONLINE_EVALUATION and IN_PERSON_EVALUATION are confirmed immediately.
+ * - TREATMENT_SESSION stays pending until payment.
  *
  * POST /bookings/confirm-payment:
  * Temporarily confirms payment.
@@ -21,13 +26,28 @@ const bookingsController = new BookingsController()
 export async function bookingsRoutes(app: FastifyInstance) {
     app.post<{
         Body: CreatePendingBookingBody
-    }>("/bookings", (request, reply) =>
-        bookingsController.createPendingBooking(request, reply),
+    }>(
+        "/bookings",
+        {
+            preHandler: requireAuth(["CLIENT"]),
+        },
+        (request, reply) =>
+            bookingsController.createPendingBooking(request, reply),
     )
 
+    /**
+     * Temporary payment confirmation endpoint.
+     *
+     * Later this should be replaced by a payment provider webhook.
+     * For now, only OWNER and ADMIN can manually confirm payments.
+     */
     app.post<{
         Body: ConfirmPaymentBody
-    }>("/bookings/confirm-payment", (request, reply) =>
-        bookingsController.confirmPayment(request, reply),
+    }>(
+        "/bookings/confirm-payment",
+        {
+            preHandler: requireAuth(["OWNER", "ADMIN"]),
+        },
+        (request, reply) => bookingsController.confirmPayment(request, reply),
     )
 }

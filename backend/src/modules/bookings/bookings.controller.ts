@@ -12,6 +12,7 @@ const bookingsService = new BookingsService()
  * HTTP controller for booking endpoints.
  *
  * Controllers handle:
+ * - authenticated user;
  * - request body;
  * - response status;
  * - error response shape.
@@ -22,7 +23,12 @@ export class BookingsController {
     /**
      * POST /bookings
      *
-     * Creates a booking.
+     * Creates a booking for the authenticated CLIENT.
+     *
+     * Important security rule:
+     * We do not trust userId from the frontend.
+     * The booking userId always comes from request.user.userId,
+     * which was validated by requireAuth(["CLIENT"]).
      *
      * Rules:
      * - ONLINE_EVALUATION and IN_PERSON_EVALUATION are confirmed immediately.
@@ -35,7 +41,19 @@ export class BookingsController {
         reply: FastifyReply,
     ) {
         try {
-            const result = await bookingsService.createPendingBooking(request.body)
+            if (!request.user) {
+                return reply.status(401).send({
+                    error: {
+                        code: "UNAUTHORIZED",
+                        message: "Authentication required.",
+                    },
+                })
+            }
+
+            const result = await bookingsService.createPendingBooking({
+                ...request.body,
+                userId: request.user.userId,
+            })
 
             return reply.status(201).send({
                 data: result,
@@ -74,6 +92,10 @@ export class BookingsController {
      *
      * Later this should be called by the payment provider webhook,
      * not manually from the frontend.
+     *
+     * Access:
+     * - OWNER
+     * - ADMIN
      */
     async confirmPayment(
         request: FastifyRequest<{
