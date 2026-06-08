@@ -2,25 +2,35 @@ import { Route, Routes } from "react-router-dom"
 
 import { DashboardLayout } from "../components/layout/DashboardLayout"
 import { PublicLayout } from "../components/layout/PublicLayout"
+import { ProtectedRoute } from "../features/auth/components/ProtectedRoute"
+import { AdminDashboardPage } from "../features/admin-dashboard/pages/AdminDashboardPage"
 import { ClientDashboardPage } from "../features/client-dashboard/pages/ClientDashboardPage"
 import { OwnerDashboardPage } from "../features/owner-dashboard/pages/OwnerDashboardPage"
-import { AdminDashboardPage } from "../features/admin-dashboard/pages/AdminDashboardPage"
+import { ServiceDetailsPage } from "../features/services/pages/ServiceDetailsPage"
+import { BookingPage } from "../pages/BookingPage"
 import { HomePage } from "../pages/HomePage"
 import { LoginPage } from "../pages/LoginPage"
 import { NotFoundPage } from "../pages/NotFoundPage"
+import { UnauthorizedPage } from "../pages/UnauthorizedPage"
 import { routePaths } from "./routePaths"
-import { BookingPage } from "../pages/BookingPage"
-import { ServiceDetailsPage } from "../features/services/pages/ServiceDetailsPage"
 
 /**
  * Main application routes.
  *
- * At this stage, these routes are public placeholders.
- * Later, we will protect dashboard routes with authentication and role checks:
+ * Public routes:
+ * - Home
+ * - Login
+ * - Service details
+ * - Booking
  *
- * CLIENT -> /client/dashboard
- * OWNER  -> /owner/dashboard
- * ADMIN  -> /admin/dashboard
+ * Protected dashboard routes:
+ * - CLIENT -> /client/dashboard
+ * - OWNER  -> /owner/dashboard
+ * - ADMIN  -> /admin/dashboard
+ *
+ * Important:
+ * ProtectedRoute prevents users from manually opening dashboard URLs
+ * that do not match their authenticated role.
  */
 export function AppRoutes() {
     return (
@@ -44,32 +54,6 @@ export function AppRoutes() {
             />
 
             <Route
-                path={routePaths.clientDashboard}
-                element={
-                    <DashboardLayout roleLabel="Cliente">
-                        <ClientDashboardPage />
-                    </DashboardLayout>
-                }
-            />
-
-            <Route
-                path={routePaths.ownerDashboard}
-                element={
-                    <DashboardLayout roleLabel="Owner">
-                        <OwnerDashboardPage />
-                    </DashboardLayout>
-                }
-            />
-
-            <Route
-                path={routePaths.adminDashboard}
-                element={
-                    <DashboardLayout roleLabel="Admin">
-                        <AdminDashboardPage />
-                    </DashboardLayout>
-                }
-            />
-            <Route
                 path={routePaths.serviceDetails}
                 element={
                     <PublicLayout>
@@ -87,7 +71,56 @@ export function AppRoutes() {
                 }
             />
 
-            <Route path="*" element={<NotFoundPage />} />
+            <Route
+                path={routePaths.clientDashboard}
+                element={
+                    <ProtectedRoute allowedRoles={["CLIENT"]}>
+                        <DashboardLayout roleLabel="Cliente">
+                            <ClientDashboardPage />
+                        </DashboardLayout>
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path={routePaths.ownerDashboard}
+                element={
+                    <ProtectedRoute allowedRoles={["OWNER"]}>
+                        <DashboardLayout roleLabel="Owner">
+                            <OwnerDashboardPage />
+                        </DashboardLayout>
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path={routePaths.adminDashboard}
+                element={
+                    <ProtectedRoute allowedRoles={["ADMIN"]}>
+                        <DashboardLayout roleLabel="Admin">
+                            <AdminDashboardPage />
+                        </DashboardLayout>
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/unauthorized"
+                element={
+                    <PublicLayout>
+                        <UnauthorizedPage />
+                    </PublicLayout>
+                }
+            />
+
+            <Route
+                path="*"
+                element={
+                    <PublicLayout>
+                        <NotFoundPage />
+                    </PublicLayout>
+                }
+            />
         </Routes>
     )
 }

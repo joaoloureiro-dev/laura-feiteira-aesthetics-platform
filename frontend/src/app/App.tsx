@@ -1,17 +1,13 @@
-import { BrowserRouter } from "react-router-dom"
-
 import { AppRoutes } from "../routes/AppRoutes"
 
 /**
  * Root application component.
  *
- * BrowserRouter enables client-side navigation, which means the app can change pages
- * without doing a full browser reload.
+ * BrowserRouter is registered once in main.tsx.
+ * AuthProvider is also registered in main.tsx.
+ *
+ * This component should only render the application routes.
  */
 export function App() {
-  return (
-    <BrowserRouter>
-      <AppRoutes />
-    </BrowserRouter>
-  )
+  return <AppRoutes />
 }
