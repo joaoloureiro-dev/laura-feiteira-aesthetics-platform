@@ -9,10 +9,13 @@ import { prisma } from "../../database/prisma"
  */
 export class ServicesRepository {
     /**
-     * Gets all service categories with active services and active options.
+     * Gets all service categories with:
+     * - active services;
+     * - active service options;
+     * - active professionals assigned to each service.
      *
      * ServiceCategory does not currently have an isActive field in our schema,
-     * so we only filter Service and ServiceOption.
+     * so we only filter Service, ServiceOption and Professional.
      */
     async findPublicCatalog() {
         return prisma.serviceCategory.findMany({
@@ -36,6 +39,27 @@ export class ServicesRepository {
                                 name: "asc",
                             },
                         },
+                        professionals: {
+                            where: {
+                                professional: {
+                                    isActive: true,
+                                },
+                            },
+                            include: {
+                                professional: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        slug: true,
+                                    },
+                                },
+                            },
+                            orderBy: {
+                                professional: {
+                                    name: "asc",
+                                },
+                            },
+                        },
                     },
                 },
             },
@@ -43,9 +67,11 @@ export class ServicesRepository {
     }
 
     /**
-     * Gets one active service by slug with its active options.
+     * Gets one active service by slug with:
+     * - active options;
+     * - active professionals assigned to this service.
      *
-     * Used by future public service detail pages.
+     * Used by the public service detail page and booking flow.
      */
     async findPublicServiceBySlug(slug: string) {
         return prisma.service.findFirst({
@@ -60,6 +86,27 @@ export class ServicesRepository {
                     },
                     orderBy: {
                         name: "asc",
+                    },
+                },
+                professionals: {
+                    where: {
+                        professional: {
+                            isActive: true,
+                        },
+                    },
+                    include: {
+                        professional: {
+                            select: {
+                                id: true,
+                                name: true,
+                                slug: true,
+                            },
+                        },
+                    },
+                    orderBy: {
+                        professional: {
+                            name: "asc",
+                        },
                     },
                 },
             },

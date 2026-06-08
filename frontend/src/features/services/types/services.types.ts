@@ -7,6 +7,12 @@ export type ServiceOption = {
     durationMinutes: number | null
 }
 
+export type ServiceProfessional = {
+    id: string
+    name: string
+    slug: string
+}
+
 export type Service = {
     id: string
     name: string
@@ -14,6 +20,7 @@ export type Service = {
     description: string | null
     evaluationRequirement: "OPTIONAL" | "REQUIRED" | "NOT_REQUIRED" | string
     options: ServiceOption[]
+    professionals: ServiceProfessional[]
 }
 
 export type ServiceCategory = {
@@ -27,11 +34,17 @@ export type ServiceCategory = {
 export type ApiResponse<T> = {
     data: T
 }
+
+export type AppointmentType =
+    | "ONLINE_EVALUATION"
+    | "IN_PERSON_EVALUATION"
+    | "TREATMENT_SESSION"
+
 export type AvailabilitySlot = {
     id: string
-    startsAt: string // ou Date se fores converter
-    endsAt: string   // ou Date
-    appointmentType: "ONLINE_EVALUATION" | "IN_PERSON_EVALUATION" | "TREATMENT_SESSION"
+    startsAt: string
+    endsAt: string
+    appointmentType: AppointmentType
     isOpen: boolean
-    note?: string
+    note?: string | null
 }

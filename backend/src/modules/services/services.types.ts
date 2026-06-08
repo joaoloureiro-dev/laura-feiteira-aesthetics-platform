@@ -1,6 +1,8 @@
-// backend/src/modules/services/services.types.ts
+export type ServiceSlugParams = {
+    slug: string
+}
 
-export interface PublicServiceOption {
+export type PublicServiceOption = {
     id: string
     name: string
     description: string | null
@@ -9,26 +11,26 @@ export interface PublicServiceOption {
     durationMinutes: number | null
 }
 
-export interface PublicService {
+export type PublicServiceProfessional = {
+    id: string
+    name: string
+    slug: string
+}
+
+export type PublicService = {
     id: string
     name: string
     slug: string
     description: string | null
     evaluationRequirement: string
     options: PublicServiceOption[]
+    professionals: PublicServiceProfessional[]
 }
 
-export interface PublicServiceCategory {
+export type PublicServiceCategory = {
     id: string
     name: string
     slug: string
     description: string | null
     services: PublicService[]
-}
-
-/**
- * Tipo para Fastify request.params em GET /services/:slug
- */
-export interface ServiceSlugParams {
-    slug: string
 }

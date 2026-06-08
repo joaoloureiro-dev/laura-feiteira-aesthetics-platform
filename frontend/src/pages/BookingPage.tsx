@@ -5,44 +5,22 @@ import { Button } from "../components/ui/Button"
 import { Container } from "../components/ui/Container"
 import type {
     ApiResponse,
+    AppointmentType,
     AvailabilitySlot,
     Service,
+    ServiceProfessional,
 } from "../features/services/types/services.types"
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3333"
-
-type AppointmentType =
-    | "ONLINE_EVALUATION"
-    | "IN_PERSON_EVALUATION"
-    | "TREATMENT_SESSION"
+const TEST_USER_ID = import.meta.env.VITE_TEST_USER_ID as string | undefined
 
 type CreatePendingBookingResponse = {
     booking: {
         id: string
     }
-    checkoutUrl: string
+    checkoutUrl?: string
 }
 
-/**
- * Converts the appointment type from the URL into user-friendly text.
- */
-function getAppointmentTypeLabel(appointmentType: AppointmentType) {
-    if (appointmentType === "ONLINE_EVALUATION") {
-        return "Avaliação por videochamada"
-    }
-
-    if (appointmentType === "IN_PERSON_EVALUATION") {
-        return "Avaliação presencial"
-    }
-
-    return "Sessão/tratamento"
-}
-
-/**
- * Validates the appointmentType query param.
- *
- * If the URL has no appointment type, we use TREATMENT_SESSION as default.
- */
 function getValidAppointmentType(value: string | null): AppointmentType {
     if (
         value === "ONLINE_EVALUATION" ||
@@ -55,17 +33,24 @@ function getValidAppointmentType(value: string | null): AppointmentType {
     return "TREATMENT_SESSION"
 }
 
-/**
- * Temporary test user id.
- *
- * For now, we still do not have JWT authentication finished.
- * So, for local testing, this value comes from frontend/.env.
- *
- * Later:
- * - remove this;
- * - get the user id from the authenticated JWT session.
- */
-const TEST_USER_ID = import.meta.env.VITE_TEST_USER_ID as string | undefined
+function getAppointmentTypeLabel(appointmentType: AppointmentType) {
+    if (appointmentType === "ONLINE_EVALUATION") {
+        return "Avaliação por videochamada"
+    }
+
+    if (appointmentType === "IN_PERSON_EVALUATION") {
+        return "Avaliação presencial"
+    }
+
+    return "Sessão/tratamento"
+}
+
+function isEvaluation(appointmentType: AppointmentType) {
+    return (
+        appointmentType === "ONLINE_EVALUATION" ||
+        appointmentType === "IN_PERSON_EVALUATION"
+    )
+}
 
 export function BookingPage() {
     const [searchParams] = useSearchParams()
@@ -77,10 +62,13 @@ export function BookingPage() {
 
     const [service, setService] = useState<Service | null>(null)
     const [slots, setSlots] = useState<AvailabilitySlot[]>([])
+    const [selectedProfessionalId, setSelectedProfessionalId] =
+        useState<string | null>(null)
     const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null)
 
     const [isLoading, setIsLoading] = useState(true)
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [successMessage, setSuccessMessage] = useState<string | null>(null)
     const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
     useEffect(() => {
@@ -95,9 +83,6 @@ export function BookingPage() {
                 setIsLoading(true)
                 setErrorMessage(null)
 
-                /**
-                 * Load selected service.
-                 */
                 const serviceResponse = await fetch(
                     `${API_BASE_URL}/services/${serviceSlug}`,
                 )
@@ -112,11 +97,13 @@ export function BookingPage() {
                 setService(servicePayload.data)
 
                 /**
-                 * Load available slots filtered by appointment type.
-                 *
-                 * Example:
-                 * /availability?type=ONLINE_EVALUATION
+                 * If there is only one professional, select it automatically.
+                 * For now, this should be Laura Feiteira.
                  */
+                if (servicePayload.data.professionals.length === 1) {
+                    setSelectedProfessionalId(servicePayload.data.professionals[0].id)
+                }
+
                 const availabilityResponse = await fetch(
                     `${API_BASE_URL}/availability?type=${appointmentType}&serviceSlug=${serviceSlug}`,
                 )
@@ -144,9 +131,14 @@ export function BookingPage() {
         loadBookingData()
     }, [serviceSlug, appointmentType])
 
-    async function handleCreatePendingBooking() {
+    async function handleCreateBooking() {
         if (!service) {
             setErrorMessage("Serviço inválido.")
+            return
+        }
+
+        if (!selectedProfessionalId) {
+            setErrorMessage("Escolha uma profissional antes de continuar.")
             return
         }
 
@@ -165,14 +157,8 @@ export function BookingPage() {
         try {
             setIsSubmitting(true)
             setErrorMessage(null)
+            setSuccessMessage(null)
 
-            /**
-             * Creates a PENDING + UNPAID booking.
-             *
-             * Important:
-             * The slot is NOT closed yet.
-             * It will only close after payment confirmation.
-             */
             const response = await fetch(`${API_BASE_URL}/bookings`, {
                 method: "POST",
                 headers: {
@@ -182,33 +168,45 @@ export function BookingPage() {
                     userId: TEST_USER_ID,
                     serviceId: service.id,
                     serviceOptionId: null,
+                    professionalId: selectedProfessionalId,
                     availabilitySlotId: selectedSlotId,
                     appointmentType,
                 }),
             })
 
             if (!response.ok) {
-                throw new Error("Não foi possível criar a reserva.")
+                throw new Error("Não foi possível criar a marcação.")
             }
 
             const payload =
                 (await response.json()) as ApiResponse<CreatePendingBookingResponse>
 
             /**
-             * Temporary checkout redirect.
-             *
-             * Later:
-             * - Stripe/PayPal returns the real checkout URL;
-             * - payment webhook confirms booking;
-             * - backend closes slot;
-             * - backend sends confirmation email.
+             * Evaluations do not require payment.
+             * They should be confirmed directly by the backend.
              */
-            window.location.href = payload.data.checkoutUrl
+            if (isEvaluation(appointmentType)) {
+                setSuccessMessage(
+                    "A sua avaliação foi marcada com sucesso. Receberá a confirmação por email.",
+                )
+
+                return
+            }
+
+            /**
+             * Treatment sessions continue to payment.
+             */
+            if (payload.data.checkoutUrl) {
+                window.location.href = payload.data.checkoutUrl
+                return
+            }
+
+            setSuccessMessage("Marcação criada. Falta configurar o pagamento.")
         } catch (error) {
             const message =
                 error instanceof Error
                     ? error.message
-                    : "Não foi possível criar a reserva."
+                    : "Não foi possível criar a marcação."
 
             setErrorMessage(message)
         } finally {
@@ -228,6 +226,8 @@ export function BookingPage() {
         )
     }
 
+    const professionals = service?.professionals ?? []
+
     return (
         <main className="min-h-screen bg-brand-ivory pb-24 pt-32">
             <Container>
@@ -241,9 +241,9 @@ export function BookingPage() {
                     </h1>
 
                     <p className="mt-5 leading-8 text-brand-gray">
-                        Escolha um horário disponível. A vaga fica pendente até ao pagamento.
-                        Após o pagamento, a marcação será confirmada, a vaga será fechada na
-                        agenda e o cliente receberá um email automático de confirmação.
+                        Escolha a profissional e o horário disponível. As avaliações não
+                        precisam de pagamento. As sessões/tratamentos seguem para pagamento
+                        quando aplicável.
                     </p>
 
                     {errorMessage ? (
@@ -251,6 +251,53 @@ export function BookingPage() {
                             {errorMessage}
                         </div>
                     ) : null}
+
+                    {successMessage ? (
+                        <div className="mt-8 rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">
+                            {successMessage}
+                        </div>
+                    ) : null}
+
+                    <section className="mt-10">
+                        <h2 className="text-xl font-semibold text-brand-charcoal">
+                            Profissional
+                        </h2>
+
+                        <div className="mt-5 grid gap-4">
+                            {professionals.length === 0 ? (
+                                <p className="rounded-2xl bg-brand-ivory p-4 text-sm text-brand-gray">
+                                    Nenhuma profissional disponível para este serviço.
+                                </p>
+                            ) : (
+                                professionals.map((professional: ServiceProfessional) => {
+                                    const isSelected =
+                                        selectedProfessionalId === professional.id
+
+                                    return (
+                                        <button
+                                            key={professional.id}
+                                            type="button"
+                                            className={`rounded-2xl border p-4 text-left transition ${isSelected
+                                                    ? "border-brand-gold bg-brand-ivory"
+                                                    : "border-brand-gold/10 bg-white hover:border-brand-gold/40"
+                                                }`}
+                                            onClick={() =>
+                                                setSelectedProfessionalId(professional.id)
+                                            }
+                                        >
+                                            <p className="font-semibold text-brand-charcoal">
+                                                {professional.name}
+                                            </p>
+
+                                            <p className="mt-1 text-sm text-brand-gray">
+                                                Profissional responsável pelo serviço.
+                                            </p>
+                                        </button>
+                                    )
+                                })
+                            )}
+                        </div>
+                    </section>
 
                     <section className="mt-10">
                         <h2 className="text-xl font-semibold text-brand-charcoal">
@@ -277,24 +324,33 @@ export function BookingPage() {
                                             onClick={() => setSelectedSlotId(slot.id)}
                                         >
                                             <p className="font-semibold capitalize text-brand-charcoal">
-                                                {new Date(slot.startsAt).toLocaleDateString("pt-PT", {
-                                                    weekday: "long",
-                                                    day: "2-digit",
-                                                    month: "long",
-                                                    year: "numeric",
-                                                })}
+                                                {new Date(slot.startsAt).toLocaleDateString(
+                                                    "pt-PT",
+                                                    {
+                                                        weekday: "long",
+                                                        day: "2-digit",
+                                                        month: "long",
+                                                        year: "numeric",
+                                                    },
+                                                )}
                                             </p>
 
                                             <p className="mt-1 text-sm text-brand-gray">
-                                                {new Date(slot.startsAt).toLocaleTimeString("pt-PT", {
-                                                    hour: "2-digit",
-                                                    minute: "2-digit",
-                                                })}{" "}
+                                                {new Date(slot.startsAt).toLocaleTimeString(
+                                                    "pt-PT",
+                                                    {
+                                                        hour: "2-digit",
+                                                        minute: "2-digit",
+                                                    },
+                                                )}{" "}
                                                 -{" "}
-                                                {new Date(slot.endsAt).toLocaleTimeString("pt-PT", {
-                                                    hour: "2-digit",
-                                                    minute: "2-digit",
-                                                })}
+                                                {new Date(slot.endsAt).toLocaleTimeString(
+                                                    "pt-PT",
+                                                    {
+                                                        hour: "2-digit",
+                                                        minute: "2-digit",
+                                                    },
+                                                )}
                                             </p>
 
                                             {slot.note ? (
@@ -312,12 +368,14 @@ export function BookingPage() {
                     <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                         <Button
                             type="button"
-                            onClick={handleCreatePendingBooking}
-                            disabled={!selectedSlotId || isSubmitting}
+                            onClick={handleCreateBooking}
+                            disabled={!selectedSlotId || !selectedProfessionalId || isSubmitting}
                         >
                             {isSubmitting
-                                ? "A preparar pagamento..."
-                                : "Continuar para pagamento"}
+                                ? "A preparar marcação..."
+                                : isEvaluation(appointmentType)
+                                    ? "Confirmar avaliação"
+                                    : "Continuar para pagamento"}
                         </Button>
 
                         <Button href="/" variant="secondary">
