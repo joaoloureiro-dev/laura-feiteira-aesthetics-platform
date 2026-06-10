@@ -3,33 +3,12 @@ import type { SubmitEventHandler } from "react"
 import { Link, useNavigate } from "react-router-dom"
 
 import { useAuth } from "../features/auth/services/AuthContext"
-import type { UserRole } from "../features/auth/types/auth.types"
+import {
+    getDashboardNameByRole,
+    getDashboardPathByRole,
+} from "../features/auth/utils/dashboardRole.utils"
 import { useToast } from "../features/toast/services/ToastContext"
 import { routePaths } from "../routes/routePaths"
-
-function getDashboardPathByRole(role: UserRole) {
-    if (role === "ADMIN") {
-        return routePaths.adminDashboard
-    }
-
-    if (role === "OWNER") {
-        return routePaths.ownerDashboard
-    }
-
-    return routePaths.clientDashboard
-}
-
-function getDashboardNameByRole(role: UserRole) {
-    if (role === "ADMIN") {
-        return "dashboard de administração"
-    }
-
-    if (role === "OWNER") {
-        return "dashboard de gestão"
-    }
-
-    return "área de cliente"
-}
 
 export function LoginPage() {
     const navigate = useNavigate()
