@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 
 import { Button } from "../components/ui/Button"
@@ -70,6 +70,34 @@ function isEvaluation(appointmentType: AppointmentType) {
     )
 }
 
+function getDateKey(dateValue: string) {
+    return new Date(dateValue).toISOString().split("T")[0]
+}
+
+function formatDayLabel(dateKey: string) {
+    return new Date(`${dateKey}T00:00:00`).toLocaleDateString("pt-PT", {
+        weekday: "short",
+        day: "2-digit",
+        month: "short",
+    })
+}
+
+function formatFullDate(dateKey: string) {
+    return new Date(`${dateKey}T00:00:00`).toLocaleDateString("pt-PT", {
+        weekday: "long",
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+    })
+}
+
+function formatTime(dateValue: string) {
+    return new Date(dateValue).toLocaleTimeString("pt-PT", {
+        hour: "2-digit",
+        minute: "2-digit",
+    })
+}
+
 async function getApiError(response: Response) {
     const payload = (await response.json().catch(() => null)) as
         | ApiErrorPayload
@@ -79,6 +107,55 @@ async function getApiError(response: Response) {
         code: payload?.error?.code ?? "API_REQUEST_FAILED",
         message: payload?.error?.message ?? "Não foi possível concluir o pedido.",
     }
+}
+
+function BookingPageSkeleton() {
+    return (
+        <main className="min-h-screen bg-brand-ivory pb-24 pt-32">
+            <Container>
+                <div className="mx-auto max-w-4xl rounded-3xl bg-white/90 p-8 shadow-sm">
+                    <div className="h-4 w-48 animate-pulse rounded-full bg-brand-gold/20" />
+                    <div className="mt-5 h-10 w-3/4 animate-pulse rounded-2xl bg-brand-ivory" />
+                    <div className="mt-5 h-4 w-full animate-pulse rounded-full bg-brand-ivory" />
+                    <div className="mt-3 h-4 w-2/3 animate-pulse rounded-full bg-brand-ivory" />
+
+                    <section className="mt-10">
+                        <div className="h-7 w-40 animate-pulse rounded-xl bg-brand-ivory" />
+                        <div className="mt-5 grid gap-4">
+                            <div className="h-24 animate-pulse rounded-2xl bg-brand-ivory" />
+                        </div>
+                    </section>
+
+                    <section className="mt-10">
+                        <div className="h-7 w-56 animate-pulse rounded-xl bg-brand-ivory" />
+
+                        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                            {Array.from({ length: 4 }).map((_, index) => (
+                                <div
+                                    key={index}
+                                    className="h-20 animate-pulse rounded-2xl bg-brand-ivory"
+                                />
+                            ))}
+                        </div>
+
+                        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                            {Array.from({ length: 4 }).map((_, index) => (
+                                <div
+                                    key={index}
+                                    className="h-20 animate-pulse rounded-2xl bg-brand-ivory"
+                                />
+                            ))}
+                        </div>
+                    </section>
+
+                    <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                        <div className="h-14 flex-1 animate-pulse rounded-full bg-brand-gold/20" />
+                        <div className="h-14 flex-1 animate-pulse rounded-full bg-brand-ivory" />
+                    </div>
+                </div>
+            </Container>
+        </main>
+    )
 }
 
 export function BookingPage() {
@@ -96,12 +173,35 @@ export function BookingPage() {
     const [slots, setSlots] = useState<AvailabilitySlot[]>([])
     const [selectedProfessionalId, setSelectedProfessionalId] =
         useState<string | null>(null)
+    const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null)
     const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null)
 
     const [isLoading, setIsLoading] = useState(true)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [successMessage, setSuccessMessage] = useState<string | null>(null)
     const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+    const slotsByDate = useMemo(() => {
+        return slots.reduce<Record<string, AvailabilitySlot[]>>((acc, slot) => {
+            const dateKey = getDateKey(slot.startsAt)
+
+            if (!acc[dateKey]) {
+                acc[dateKey] = []
+            }
+
+            acc[dateKey].push(slot)
+
+            return acc
+        }, {})
+    }, [slots])
+
+    const availableDateKeys = useMemo(() => {
+        return Object.keys(slotsByDate).sort()
+    }, [slotsByDate])
+
+    const selectedDateSlots = selectedDateKey
+        ? slotsByDate[selectedDateKey] ?? []
+        : []
 
     useEffect(() => {
         async function loadBookingData() {
@@ -146,6 +246,12 @@ export function BookingPage() {
                     >
 
                 setSlots(availabilityPayload.data)
+
+                const firstDateKey = availabilityPayload.data[0]
+                    ? getDateKey(availabilityPayload.data[0].startsAt)
+                    : null
+
+                setSelectedDateKey(firstDateKey)
             } catch (error) {
                 const message =
                     error instanceof Error
@@ -330,10 +436,7 @@ export function BookingPage() {
                 return
             }
 
-            if (
-                error instanceof ApiRequestError &&
-                error.code === "FORBIDDEN"
-            ) {
+            if (error instanceof ApiRequestError && error.code === "FORBIDDEN") {
                 const message =
                     "A sua conta não tem permissão para criar esta marcação."
 
@@ -348,10 +451,7 @@ export function BookingPage() {
                 return
             }
 
-            if (
-                error instanceof ApiRequestError &&
-                error.code === "UNAUTHORIZED"
-            ) {
+            if (error instanceof ApiRequestError && error.code === "UNAUTHORIZED") {
                 redirectToLogin()
                 return
             }
@@ -374,15 +474,7 @@ export function BookingPage() {
     }
 
     if (isLoading) {
-        return (
-            <main className="min-h-screen bg-brand-ivory pt-32">
-                <Container>
-                    <div className="mx-auto max-w-4xl rounded-3xl bg-white/90 p-8 shadow-sm">
-                        <div className="h-72 animate-pulse rounded-3xl bg-brand-ivory" />
-                    </div>
-                </Container>
-            </main>
-        )
+        return <BookingPageSkeleton />
     }
 
     const professionals = service?.professionals ?? []
@@ -400,9 +492,9 @@ export function BookingPage() {
                     </h1>
 
                     <p className="mt-5 leading-8 text-brand-gray">
-                        Escolha a profissional e o horário disponível. As avaliações não
-                        precisam de pagamento. As sessões/tratamentos seguem para pagamento
-                        quando aplicável.
+                        Escolha a profissional, selecione o dia e depois escolha uma hora
+                        disponível. As avaliações não precisam de pagamento. As
+                        sessões/tratamentos seguem para pagamento quando aplicável.
                     </p>
 
                     {!isAuthLoading && !isAuthenticated ? (
@@ -466,69 +558,104 @@ export function BookingPage() {
                     </section>
 
                     <section className="mt-10">
-                        <h2 className="text-xl font-semibold text-brand-charcoal">
-                            Horários disponíveis
-                        </h2>
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                            <div>
+                                <h2 className="text-xl font-semibold text-brand-charcoal">
+                                    Calendário disponível
+                                </h2>
 
-                        <div className="mt-5 grid gap-4">
-                            {slots.length === 0 ? (
-                                <p className="rounded-2xl bg-brand-ivory p-4 text-center text-sm text-brand-gray">
-                                    Nenhum horário disponível para este tipo de marcação.
+                                <p className="mt-2 text-sm leading-6 text-brand-gray">
+                                    Selecione primeiro o dia e depois escolha a hora.
                                 </p>
-                            ) : (
-                                slots.map((slot) => {
-                                    const isSelected = selectedSlotId === slot.id
-
-                                    return (
-                                        <button
-                                            key={slot.id}
-                                            type="button"
-                                            className={`rounded-2xl border p-4 text-left transition ${isSelected
-                                                    ? "border-brand-gold bg-brand-ivory"
-                                                    : "border-brand-gold/10 bg-white hover:border-brand-gold/40"
-                                                }`}
-                                            onClick={() => setSelectedSlotId(slot.id)}
-                                        >
-                                            <p className="font-semibold capitalize text-brand-charcoal">
-                                                {new Date(slot.startsAt).toLocaleDateString(
-                                                    "pt-PT",
-                                                    {
-                                                        weekday: "long",
-                                                        day: "2-digit",
-                                                        month: "long",
-                                                        year: "numeric",
-                                                    },
-                                                )}
-                                            </p>
-
-                                            <p className="mt-1 text-sm text-brand-gray">
-                                                {new Date(slot.startsAt).toLocaleTimeString(
-                                                    "pt-PT",
-                                                    {
-                                                        hour: "2-digit",
-                                                        minute: "2-digit",
-                                                    },
-                                                )}{" "}
-                                                -{" "}
-                                                {new Date(slot.endsAt).toLocaleTimeString(
-                                                    "pt-PT",
-                                                    {
-                                                        hour: "2-digit",
-                                                        minute: "2-digit",
-                                                    },
-                                                )}
-                                            </p>
-
-                                            {slot.note ? (
-                                                <p className="mt-2 text-xs text-brand-gray">
-                                                    {slot.note}
-                                                </p>
-                                            ) : null}
-                                        </button>
-                                    )
-                                })
-                            )}
+                            </div>
                         </div>
+
+                        {availableDateKeys.length === 0 ? (
+                            <p className="mt-5 rounded-2xl bg-brand-ivory p-4 text-center text-sm text-brand-gray">
+                                Nenhum horário disponível para este tipo de marcação.
+                            </p>
+                        ) : (
+                            <>
+                                <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                                    {availableDateKeys.map((dateKey) => {
+                                        const isSelected = selectedDateKey === dateKey
+                                        const totalSlots = slotsByDate[dateKey]?.length ?? 0
+
+                                        return (
+                                            <button
+                                                key={dateKey}
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelectedDateKey(dateKey)
+                                                    setSelectedSlotId(null)
+                                                }}
+                                                className={`rounded-2xl border p-4 text-left transition ${isSelected
+                                                        ? "border-brand-gold bg-brand-ivory shadow-sm"
+                                                        : "border-brand-gold/10 bg-white hover:border-brand-gold/40"
+                                                    }`}
+                                            >
+                                                <p className="font-semibold capitalize text-brand-charcoal">
+                                                    {formatDayLabel(dateKey)}
+                                                </p>
+
+                                                <p className="mt-2 text-xs text-brand-gray">
+                                                    {totalSlots}{" "}
+                                                    {totalSlots === 1
+                                                        ? "horário disponível"
+                                                        : "horários disponíveis"}
+                                                </p>
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+
+                                {selectedDateKey ? (
+                                    <div className="mt-8 rounded-3xl border border-brand-gold/10 bg-white p-5">
+                                        <p className="text-sm font-semibold capitalize text-brand-charcoal">
+                                            {formatFullDate(selectedDateKey)}
+                                        </p>
+
+                                        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                                            {selectedDateSlots.map((slot) => {
+                                                const isSelected =
+                                                    selectedSlotId === slot.id
+
+                                                return (
+                                                    <button
+                                                        key={slot.id}
+                                                        type="button"
+                                                        onClick={() =>
+                                                            setSelectedSlotId(slot.id)
+                                                        }
+                                                        className={`rounded-2xl border p-4 text-left transition ${isSelected
+                                                                ? "border-brand-gold bg-brand-ivory"
+                                                                : "border-brand-gold/10 bg-white hover:border-brand-gold/40"
+                                                            }`}
+                                                    >
+                                                        <p className="font-semibold text-brand-charcoal">
+                                                            {formatTime(slot.startsAt)} -{" "}
+                                                            {formatTime(slot.endsAt)}
+                                                        </p>
+
+                                                        <p className="mt-1 text-sm text-brand-gray">
+                                                            {getAppointmentTypeLabel(
+                                                                slot.appointmentType,
+                                                            )}
+                                                        </p>
+
+                                                        {slot.note ? (
+                                                            <p className="mt-2 text-xs text-brand-gray">
+                                                                {slot.note}
+                                                            </p>
+                                                        ) : null}
+                                                    </button>
+                                                )
+                                            })}
+                                        </div>
+                                    </div>
+                                ) : null}
+                            </>
+                        )}
                     </section>
 
                     <div className="mt-8 flex flex-col gap-3 sm:flex-row">
