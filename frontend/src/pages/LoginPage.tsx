@@ -1,8 +1,10 @@
-import { useState, type FormEvent } from "react"
+import { useState } from "react"
+import type { SubmitEventHandler } from "react"
 import { Link, useNavigate } from "react-router-dom"
 
 import { useAuth } from "../features/auth/services/AuthContext"
 import type { UserRole } from "../features/auth/types/auth.types"
+import { useToast } from "../features/toast/services/ToastContext"
 import { routePaths } from "../routes/routePaths"
 
 function getDashboardPathByRole(role: UserRole) {
@@ -17,16 +19,29 @@ function getDashboardPathByRole(role: UserRole) {
     return routePaths.clientDashboard
 }
 
+function getDashboardNameByRole(role: UserRole) {
+    if (role === "ADMIN") {
+        return "dashboard de administração"
+    }
+
+    if (role === "OWNER") {
+        return "dashboard de gestão"
+    }
+
+    return "área de cliente"
+}
+
 export function LoginPage() {
     const navigate = useNavigate()
     const { login } = useAuth()
+    const { showToast } = useToast()
 
     const [email, setEmail] = useState("cliente.auth@test.com")
     const [password, setPassword] = useState("password123")
     const [errorMessage, setErrorMessage] = useState<string | null>(null)
     const [isSubmitting, setIsSubmitting] = useState(false)
 
-    async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    const handleSubmit: SubmitEventHandler<HTMLFormElement> = async (event) => {
         event.preventDefault()
 
         try {
@@ -38,10 +53,24 @@ export function LoginPage() {
                 password,
             })
 
+            showToast({
+                type: "success",
+                title: "Login efetuado com sucesso",
+                message: `A redirecionar para o ${getDashboardNameByRole(
+                    user.role,
+                )}.`,
+            })
+
             navigate(getDashboardPathByRole(user.role), {
                 replace: true,
             })
         } catch {
+            showToast({
+                type: "error",
+                title: "Não foi possível iniciar sessão",
+                message: "Confirme o email e a password e tente novamente.",
+            })
+
             setErrorMessage("Email ou password inválidos.")
         } finally {
             setIsSubmitting(false)
@@ -135,7 +164,8 @@ export function LoginPage() {
                         <button
                             type="button"
                             onClick={handleGoogleLogin}
-                            className="flex h-14 w-full items-center justify-center gap-3 rounded-full border border-brand-gold/20 bg-white px-6 text-sm font-semibold text-brand-charcoal transition hover:border-brand-gold hover:bg-brand-ivory"
+                            disabled={isSubmitting}
+                            className="flex h-14 w-full items-center justify-center gap-3 rounded-full border border-brand-gold/20 bg-white px-6 text-sm font-semibold text-brand-charcoal transition hover:border-brand-gold hover:bg-brand-ivory disabled:cursor-not-allowed disabled:opacity-70"
                         >
                             <svg
                                 xmlns="http://www.w3.org/2000/svg"
