@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react"
-import { useSearchParams } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 
 import { Button } from "../components/ui/Button"
 import { Container } from "../components/ui/Container"
+import { useAuth } from "../features/auth/services/AuthContext"
 import type {
     ApiResponse,
     AppointmentType,
@@ -10,9 +11,9 @@ import type {
     Service,
     ServiceProfessional,
 } from "../features/services/types/services.types"
+import { useToast } from "../features/toast/services/ToastContext"
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3333"
-const TEST_USER_ID = import.meta.env.VITE_TEST_USER_ID as string | undefined
 
 type CreateBookingResponse = {
     booking: {
@@ -20,6 +21,22 @@ type CreateBookingResponse = {
     }
     checkoutUrl: string | null
     requiresPayment: boolean
+}
+
+type ApiErrorPayload = {
+    error?: {
+        code?: string
+        message?: string
+    }
+}
+
+class ApiRequestError extends Error {
+    code: string
+
+    constructor(code: string, message: string) {
+        super(message)
+        this.code = code
+    }
 }
 
 function getValidAppointmentType(value: string | null): AppointmentType {
@@ -53,8 +70,22 @@ function isEvaluation(appointmentType: AppointmentType) {
     )
 }
 
+async function getApiError(response: Response) {
+    const payload = (await response.json().catch(() => null)) as
+        | ApiErrorPayload
+        | null
+
+    return {
+        code: payload?.error?.code ?? "API_REQUEST_FAILED",
+        message: payload?.error?.message ?? "Não foi possível concluir o pedido.",
+    }
+}
+
 export function BookingPage() {
+    const navigate = useNavigate()
     const [searchParams] = useSearchParams()
+    const { token, isAuthenticated, isLoading: isAuthLoading } = useAuth()
+    const { showToast } = useToast()
 
     const serviceSlug = searchParams.get("service")
     const appointmentType = getValidAppointmentType(
@@ -110,7 +141,9 @@ export function BookingPage() {
                 }
 
                 const availabilityPayload =
-                    (await availabilityResponse.json()) as ApiResponse<AvailabilitySlot[]>
+                    (await availabilityResponse.json()) as ApiResponse<
+                        AvailabilitySlot[]
+                    >
 
                 setSlots(availabilityPayload.data)
             } catch (error) {
@@ -120,34 +153,87 @@ export function BookingPage() {
                         : "Não foi possível carregar os dados da marcação."
 
                 setErrorMessage(message)
+
+                showToast({
+                    type: "error",
+                    title: "Erro ao carregar marcação",
+                    message,
+                })
             } finally {
                 setIsLoading(false)
             }
         }
 
         loadBookingData()
-    }, [serviceSlug, appointmentType])
+    }, [serviceSlug, appointmentType, showToast])
+
+    function redirectToLogin() {
+        showToast({
+            type: "warning",
+            title: "Inicie sessão para reservar",
+            message: "Para concluir a marcação, precisa de entrar na sua conta.",
+        })
+
+        navigate("/login", {
+            state: {
+                from: {
+                    pathname: "/booking",
+                    search: searchParams.toString()
+                        ? `?${searchParams.toString()}`
+                        : "",
+                },
+            },
+        })
+    }
 
     async function handleCreateBooking() {
+        if (isAuthLoading) {
+            showToast({
+                type: "info",
+                title: "A validar sessão",
+                message: "Aguarde enquanto confirmamos o seu acesso.",
+            })
+            return
+        }
+
+        if (!isAuthenticated || !token) {
+            redirectToLogin()
+            return
+        }
+
         if (!service) {
             setErrorMessage("Serviço inválido.")
+
+            showToast({
+                type: "error",
+                title: "Serviço inválido",
+                message: "Volte à página de serviços e selecione novamente.",
+            })
+
             return
         }
 
         if (!selectedProfessionalId) {
             setErrorMessage("Escolha uma profissional antes de continuar.")
+
+            showToast({
+                type: "warning",
+                title: "Escolha uma profissional",
+                message: "Selecione a profissional responsável pela marcação.",
+            })
+
             return
         }
 
         if (!selectedSlotId) {
             setErrorMessage("Escolha um horário antes de continuar.")
-            return
-        }
 
-        if (!TEST_USER_ID) {
-            setErrorMessage(
-                "Ainda não existe utilizador autenticado. Para teste local, adiciona VITE_TEST_USER_ID no frontend/.env. Depois vamos substituir isto pelo JWT.",
-            )
+            showToast({
+                type: "warning",
+                title: "Escolha um horário",
+                message: "Selecione uma vaga disponível para continuar.",
+            })
+
             return
         }
 
@@ -160,9 +246,9 @@ export function BookingPage() {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
                 },
                 body: JSON.stringify({
-                    userId: TEST_USER_ID,
                     serviceId: service.id,
                     serviceOptionId: null,
                     professionalId: selectedProfessionalId,
@@ -172,32 +258,116 @@ export function BookingPage() {
             })
 
             if (!response.ok) {
-                throw new Error("Não foi possível criar a marcação.")
+                const apiError = await getApiError(response)
+
+                throw new ApiRequestError(apiError.code, apiError.message)
             }
 
             const payload =
                 (await response.json()) as ApiResponse<CreateBookingResponse>
 
             if (!payload.data.requiresPayment) {
-                setSuccessMessage(
-                    "A sua avaliação foi marcada com sucesso. Receberá a confirmação por email.",
+                const message =
+                    "A sua avaliação foi marcada com sucesso. Receberá a confirmação por email."
+
+                setSuccessMessage(message)
+
+                showToast({
+                    type: "success",
+                    title: "Avaliação confirmada",
+                    message,
+                })
+
+                setSlots((currentSlots) =>
+                    currentSlots.filter((slot) => slot.id !== selectedSlotId),
                 )
+                setSelectedSlotId(null)
+
                 return
             }
 
             if (payload.data.checkoutUrl) {
+                showToast({
+                    type: "success",
+                    title: "Marcação criada",
+                    message: "Vamos redirecionar para o pagamento.",
+                })
+
                 window.location.href = payload.data.checkoutUrl
                 return
             }
 
-            setSuccessMessage("Marcação criada. Falta configurar o pagamento.")
+            const message = "Marcação criada. Falta configurar o pagamento."
+
+            setSuccessMessage(message)
+
+            showToast({
+                type: "info",
+                title: "Marcação criada",
+                message,
+            })
         } catch (error) {
+            if (
+                error instanceof ApiRequestError &&
+                error.code === "AVAILABILITY_SLOT_NOT_AVAILABLE"
+            ) {
+                const message =
+                    "Esta vaga já foi reservada. Por favor selecione outro horário."
+
+                setErrorMessage(message)
+                setSelectedSlotId(null)
+
+                setSlots((currentSlots) =>
+                    currentSlots.filter((slot) => slot.id !== selectedSlotId),
+                )
+
+                showToast({
+                    type: "warning",
+                    title: "Esta vaga já foi reservada",
+                    message: "Por favor selecione outro horário disponível.",
+                })
+
+                return
+            }
+
+            if (
+                error instanceof ApiRequestError &&
+                error.code === "FORBIDDEN"
+            ) {
+                const message =
+                    "A sua conta não tem permissão para criar esta marcação."
+
+                setErrorMessage(message)
+
+                showToast({
+                    type: "error",
+                    title: "Sem permissão",
+                    message,
+                })
+
+                return
+            }
+
+            if (
+                error instanceof ApiRequestError &&
+                error.code === "UNAUTHORIZED"
+            ) {
+                redirectToLogin()
+                return
+            }
+
             const message =
                 error instanceof Error
                     ? error.message
                     : "Não foi possível criar a marcação."
 
             setErrorMessage(message)
+
+            showToast({
+                type: "error",
+                title: "Não foi possível criar a marcação",
+                message: "Tente novamente ou escolha outro horário.",
+            })
         } finally {
             setIsSubmitting(false)
         }
@@ -234,6 +404,13 @@ export function BookingPage() {
                         precisam de pagamento. As sessões/tratamentos seguem para pagamento
                         quando aplicável.
                     </p>
+
+                    {!isAuthLoading && !isAuthenticated ? (
+                        <div className="mt-8 rounded-2xl border border-brand-gold/20 bg-brand-ivory p-4 text-sm leading-7 text-brand-gray">
+                            Para concluir a marcação, precisa de iniciar sessão na sua
+                            conta.
+                        </div>
+                    ) : null}
 
                     {errorMessage ? (
                         <div className="mt-8 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
@@ -358,7 +535,12 @@ export function BookingPage() {
                         <Button
                             type="button"
                             onClick={handleCreateBooking}
-                            disabled={!selectedSlotId || !selectedProfessionalId || isSubmitting}
+                            disabled={
+                                !selectedSlotId ||
+                                !selectedProfessionalId ||
+                                isSubmitting ||
+                                isAuthLoading
+                            }
                         >
                             {isSubmitting
                                 ? "A preparar marcação..."
