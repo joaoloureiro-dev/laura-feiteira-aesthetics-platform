@@ -8,14 +8,26 @@ import type {
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3333"
 
+type ApiErrorResponse = {
+    error?: {
+        code?: string
+        message?: string
+    }
+}
+
 async function parseApiResponse<T>(response: Response): Promise<T> {
-    const payload = (await response.json()) as ApiResponse<T>
+    const payload = (await response.json().catch(() => null)) as
+        | ApiResponse<T>
+        | ApiErrorResponse
+        | null
 
     if (!response.ok) {
-        throw new Error("API_REQUEST_FAILED")
+        const errorPayload = payload as ApiErrorResponse | null
+
+        throw new Error(errorPayload?.error?.code ?? "API_REQUEST_FAILED")
     }
 
-    return payload.data
+    return (payload as ApiResponse<T>).data
 }
 
 export async function loginRequest(body: LoginBody): Promise<AuthResponse> {

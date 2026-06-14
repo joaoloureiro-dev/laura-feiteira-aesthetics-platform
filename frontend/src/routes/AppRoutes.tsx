@@ -2,8 +2,8 @@ import { Route, Routes } from "react-router-dom"
 
 import { DashboardLayout } from "../components/layout/DashboardLayout"
 import { PublicLayout } from "../components/layout/PublicLayout"
-import { ProtectedRoute } from "../features/auth/components/ProtectedRoute"
 import { AdminDashboardPage } from "../features/admin-dashboard/pages/AdminDashboardPage"
+import { ProtectedRoute } from "../features/auth/components/ProtectedRoute"
 import { ClientDashboardPage } from "../features/client-dashboard/pages/ClientDashboardPage"
 import { OwnerDashboardPage } from "../features/owner-dashboard/pages/OwnerDashboardPage"
 import { ServiceDetailsPage } from "../features/services/pages/ServiceDetailsPage"
@@ -11,6 +11,7 @@ import { BookingPage } from "../pages/BookingPage"
 import { HomePage } from "../pages/HomePage"
 import { LoginPage } from "../pages/LoginPage"
 import { NotFoundPage } from "../pages/NotFoundPage"
+import { RegisterPage } from "../pages/RegisterPage"
 import { UnauthorizedPage } from "../pages/UnauthorizedPage"
 import { routePaths } from "./routePaths"
 
@@ -20,17 +21,14 @@ import { routePaths } from "./routePaths"
  * Public routes:
  * - Home
  * - Login
+ * - Register
  * - Service details
- * - Booking
+ * - Booking selection
  *
  * Protected dashboard routes:
  * - CLIENT -> /client/dashboard
  * - OWNER  -> /owner/dashboard
  * - ADMIN  -> /admin/dashboard
- *
- * Important:
- * ProtectedRoute prevents users from manually opening dashboard URLs
- * that do not match their authenticated role.
  */
 export function AppRoutes() {
     return (
@@ -49,6 +47,15 @@ export function AppRoutes() {
                 element={
                     <PublicLayout>
                         <LoginPage />
+                    </PublicLayout>
+                }
+            />
+
+            <Route
+                path={routePaths.register}
+                element={
+                    <PublicLayout>
+                        <RegisterPage />
                     </PublicLayout>
                 }
             />
@@ -105,7 +112,7 @@ export function AppRoutes() {
             />
 
             <Route
-                path="/unauthorized"
+                path={routePaths.unauthorized}
                 element={
                     <PublicLayout>
                         <UnauthorizedPage />

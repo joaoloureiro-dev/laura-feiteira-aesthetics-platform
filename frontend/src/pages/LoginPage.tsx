@@ -178,10 +178,10 @@ export function LoginPage() {
                         <p className="text-sm leading-7 text-brand-gray">
                             Ainda não tem conta?{" "}
                             <Link
-                                to={routePaths.home}
+                                to={routePaths.register}
                                 className="font-semibold text-brand-dark-gold transition hover:text-brand-charcoal"
                             >
-                                Criar conta será adicionado no próximo passo
+                                Criar conta
                             </Link>
                             .
                         </p>

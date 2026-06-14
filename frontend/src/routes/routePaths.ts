@@ -1,21 +1,22 @@
 /**
  * Centralized application route paths.
  *
- * Why this exists:
  * Instead of writing route strings manually across the project,
- * we keep them in one place. This reduces mistakes when routes change later.
+ * all application paths are kept in one place.
  */
 export const routePaths = {
     home: "/",
+
     login: "/login",
+    register: "/register",
 
     services: "/services",
     serviceDetails: "/services/:slug",
     booking: "/booking",
 
     clientDashboard: "/client/dashboard",
-
     ownerDashboard: "/owner/dashboard",
-
     adminDashboard: "/admin/dashboard",
+
+    unauthorized: "/unauthorized",
 } as const
