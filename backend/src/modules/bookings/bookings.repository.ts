@@ -4,8 +4,8 @@ import type { CreatePendingBookingBody } from "./bookings.types"
 /**
  * Repository responsible for booking database operations.
  *
- * Repositories only talk to Prisma.
- * Business rules stay in bookings.service.ts.
+ * Repositories only communicate with Prisma.
+ * Business rules stay inside bookings.service.ts.
  */
 export class BookingsRepository {
     async findAvailabilitySlotById(id: string) {
@@ -23,6 +23,56 @@ export class BookingsRepository {
                     serviceId,
                     professionalId,
                 },
+            },
+        })
+    }
+
+    /**
+     * Returns all bookings belonging to one authenticated client.
+     *
+     * The userId is obtained from the validated JWT and never from
+     * query parameters or request body.
+     */
+    async findBookingsByUserId(userId: string) {
+        return prisma.booking.findMany({
+            where: {
+                userId,
+            },
+            include: {
+                service: {
+                    select: {
+                        id: true,
+                        name: true,
+                        slug: true,
+                    },
+                },
+                serviceOption: {
+                    select: {
+                        id: true,
+                        name: true,
+                        priceCents: true,
+                        priceLabel: true,
+                        durationMinutes: true,
+                    },
+                },
+                professional: {
+                    select: {
+                        id: true,
+                        name: true,
+                        slug: true,
+                    },
+                },
+                availabilitySlot: {
+                    select: {
+                        id: true,
+                        startsAt: true,
+                        endsAt: true,
+                        appointmentType: true,
+                    },
+                },
+            },
+            orderBy: {
+                createdAt: "desc",
             },
         })
     }

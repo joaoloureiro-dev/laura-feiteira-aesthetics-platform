@@ -21,6 +21,45 @@ const bookingsService = new BookingsService()
  */
 export class BookingsController {
     /**
+     * GET /bookings/me
+     *
+     * Returns bookings belonging to the authenticated CLIENT.
+     *
+     * Security:
+     * The client userId comes from the validated JWT.
+     */
+    async getMyBookings(
+        request: FastifyRequest,
+        reply: FastifyReply,
+    ) {
+        try {
+            if (!request.user) {
+                return reply.status(401).send({
+                    error: {
+                        code: "UNAUTHORIZED",
+                        message: "Authentication required.",
+                    },
+                })
+            }
+
+            const bookings = await bookingsService.getClientBookings(
+                request.user.userId,
+            )
+
+            return reply.status(200).send({
+                data: bookings,
+            })
+        } catch {
+            return reply.status(500).send({
+                error: {
+                    code: "BOOKINGS_FETCH_FAILED",
+                    message: "Could not load client bookings.",
+                },
+            })
+        }
+    }
+
+    /**
      * POST /bookings
      *
      * Creates a booking for the authenticated CLIENT.
@@ -60,7 +99,9 @@ export class BookingsController {
             })
         } catch (error) {
             const message =
-                error instanceof Error ? error.message : "BOOKING_CREATION_FAILED"
+                error instanceof Error
+                    ? error.message
+                    : "BOOKING_CREATION_FAILED"
 
             if (
                 message === "AVAILABILITY_SLOT_NOT_AVAILABLE" ||

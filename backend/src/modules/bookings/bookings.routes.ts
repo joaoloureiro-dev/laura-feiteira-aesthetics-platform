@@ -12,18 +12,26 @@ const bookingsController = new BookingsController()
 /**
  * Booking routes.
  *
+ * GET /bookings/me:
+ * Returns bookings belonging to the authenticated CLIENT.
+ *
  * POST /bookings:
  * Creates a booking for the authenticated CLIENT.
- *
- * Rules:
- * - ONLINE_EVALUATION and IN_PERSON_EVALUATION are confirmed immediately.
- * - TREATMENT_SESSION stays pending until payment.
  *
  * POST /bookings/confirm-payment:
  * Temporarily confirms payment.
  * Later this must be triggered by the payment provider webhook.
  */
 export async function bookingsRoutes(app: FastifyInstance) {
+    app.get(
+        "/bookings/me",
+        {
+            preHandler: requireAuth(["CLIENT"]),
+        },
+        (request, reply) =>
+            bookingsController.getMyBookings(request, reply),
+    )
+
     app.post<{
         Body: CreatePendingBookingBody
     }>(
@@ -48,6 +56,7 @@ export async function bookingsRoutes(app: FastifyInstance) {
         {
             preHandler: requireAuth(["OWNER", "ADMIN"]),
         },
-        (request, reply) => bookingsController.confirmPayment(request, reply),
+        (request, reply) =>
+            bookingsController.confirmPayment(request, reply),
     )
 }
