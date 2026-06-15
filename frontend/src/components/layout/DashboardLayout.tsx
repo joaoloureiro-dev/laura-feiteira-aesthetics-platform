@@ -26,19 +26,19 @@ const dashboardNavigation: Record<DashboardRole, DashboardNavigationItem[]> = {
         },
         {
             label: "Marcações",
-            href: "/client/bookings",
+            href: routePaths.clientBookings,
         },
         {
             label: "Tratamentos",
-            href: "/client/treatments",
+            href: routePaths.clientTreatments,
         },
         {
             label: "Pagamentos",
-            href: "/client/payments",
+            href: routePaths.clientPayments,
         },
         {
             label: "Perfil",
-            href: "/client/profile",
+            href: routePaths.clientProfile,
         },
     ],
 
@@ -190,8 +190,8 @@ export function DashboardLayout({
                 <div
                     id="dashboard-mobile-menu"
                     className={`border-t border-brand-gold/10 bg-white px-6 transition-all duration-300 md:hidden ${isMobileMenuOpen
-                            ? "max-h-[128] opacity-100"
-                            : "max-h-0 overflow-hidden opacity-0"
+                        ? "max-h-[128] opacity-100"
+                        : "max-h-0 overflow-hidden opacity-0"
                         }`}
                 >
                     <nav className="mx-auto flex max-w-7xl flex-col gap-2 py-5">

@@ -4,6 +4,7 @@ import { DashboardLayout } from "../components/layout/DashboardLayout"
 import { PublicLayout } from "../components/layout/PublicLayout"
 import { AdminDashboardPage } from "../features/admin-dashboard/pages/AdminDashboardPage"
 import { ProtectedRoute } from "../features/auth/components/ProtectedRoute"
+import { ClientBookingsPage } from "../features/client-dashboard/pages/ClientBookingsPage"
 import { ClientDashboardPage } from "../features/client-dashboard/pages/ClientDashboardPage"
 import { OwnerDashboardPage } from "../features/owner-dashboard/pages/OwnerDashboardPage"
 import { ServiceDetailsPage } from "../features/services/pages/ServiceDetailsPage"
@@ -23,12 +24,16 @@ import { routePaths } from "./routePaths"
  * - Login
  * - Register
  * - Service details
- * - Booking selection
+ * - Booking
+ *
+ * Protected client routes:
+ * - Dashboard
+ * - Bookings
  *
  * Protected dashboard routes:
- * - CLIENT -> /client/dashboard
- * - OWNER  -> /owner/dashboard
- * - ADMIN  -> /admin/dashboard
+ * - CLIENT -> /client/*
+ * - OWNER  -> /owner/*
+ * - ADMIN  -> /admin/*
  */
 export function AppRoutes() {
     return (
@@ -84,6 +89,17 @@ export function AppRoutes() {
                     <ProtectedRoute allowedRoles={["CLIENT"]}>
                         <DashboardLayout roleLabel="Cliente">
                             <ClientDashboardPage />
+                        </DashboardLayout>
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path={routePaths.clientBookings}
+                element={
+                    <ProtectedRoute allowedRoles={["CLIENT"]}>
+                        <DashboardLayout roleLabel="Cliente">
+                            <ClientBookingsPage />
                         </DashboardLayout>
                     </ProtectedRoute>
                 }

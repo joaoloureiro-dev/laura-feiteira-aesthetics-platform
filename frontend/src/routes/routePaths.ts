@@ -15,7 +15,13 @@ export const routePaths = {
     booking: "/booking",
 
     clientDashboard: "/client/dashboard",
+    clientBookings: "/client/bookings",
+    clientTreatments: "/client/treatments",
+    clientPayments: "/client/payments",
+    clientProfile: "/client/profile",
+
     ownerDashboard: "/owner/dashboard",
+
     adminDashboard: "/admin/dashboard",
 
     unauthorized: "/unauthorized",
