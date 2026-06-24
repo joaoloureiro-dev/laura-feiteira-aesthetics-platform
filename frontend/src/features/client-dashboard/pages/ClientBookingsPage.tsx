@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 
 import { Button } from "../../../components/ui/Button"
 import { useAuth } from "../../auth/services/AuthContext"
+import { NewBookingModal } from "../../bookings/components/NewBookingModal"
 import { useToast } from "../../toast/services/ToastContext"
 import { getMyBookings } from "../services/clientDashboard.api"
 import type {
@@ -147,7 +148,8 @@ function BookingCard({ booking }: { booking: ClientBooking }) {
                     </span>
 
                     <span className="rounded-full border border-brand-gold/20 bg-white px-3 py-2 text-xs font-semibold text-brand-gray">
-                        Pagamento: {getPaymentStatusLabel(booking.paymentStatus)}
+                        Pagamento:{" "}
+                        {getPaymentStatusLabel(booking.paymentStatus)}
                     </span>
                 </div>
             </div>
@@ -162,6 +164,9 @@ export function ClientBookingsPage() {
     const [bookings, setBookings] = useState<ClientBooking[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [errorMessage, setErrorMessage] = useState<string | null>(null)
+    const [isNewBookingModalOpen, setIsNewBookingModalOpen] =
+        useState(false)
+    const [bookingRefreshKey, setBookingRefreshKey] = useState(0)
 
     useEffect(() => {
         async function loadBookings() {
@@ -194,7 +199,7 @@ export function ClientBookingsPage() {
         }
 
         loadBookings()
-    }, [token, showToast])
+    }, [token, showToast, bookingRefreshKey])
 
     const now = new Date()
 
@@ -239,6 +244,19 @@ export function ClientBookingsPage() {
         [bookings],
     )
 
+    function openNewBookingModal() {
+        setIsNewBookingModalOpen(true)
+    }
+
+    function closeNewBookingModal() {
+        setIsNewBookingModalOpen(false)
+    }
+
+    function handleBookingCreated() {
+        setIsNewBookingModalOpen(false)
+        setBookingRefreshKey((currentKey) => currentKey + 1)
+    }
+
     if (isLoading) {
         return <ClientBookingsSkeleton />
     }
@@ -256,12 +274,17 @@ export function ClientBookingsPage() {
                     </h1>
 
                     <p className="mt-4 max-w-2xl leading-8 text-brand-gray">
-                        Consulte as próximas reservas e o histórico de avaliações e
-                        tratamentos realizados.
+                        Consulte as próximas reservas e o histórico de
+                        avaliações e tratamentos realizados.
                     </p>
                 </div>
 
-                <Button href="/">Nova marcação</Button>
+                <Button
+                    type="button"
+                    onClick={openNewBookingModal}
+                >
+                    Nova marcação
+                </Button>
             </div>
 
             {errorMessage ? (
@@ -285,9 +308,9 @@ export function ClientBookingsPage() {
                         </h2>
                     </div>
 
-                    <p className="text-sm text-brand-gray">
+                    <span className="rounded-full border border-brand-gold/20 bg-white px-3 py-1 text-sm font-semibold text-brand-gray">
                         {upcomingBookings.length}
-                    </p>
+                    </span>
                 </div>
 
                 {upcomingBookings.length === 0 ? (
@@ -297,12 +320,17 @@ export function ClientBookingsPage() {
                         </h3>
 
                         <p className="mx-auto mt-3 max-w-md text-sm leading-7 text-brand-gray">
-                            Consulte os serviços disponíveis e escolha um dia e
-                            horário para a sua próxima marcação.
+                            Escolha um serviço e consulte os dias e horários
+                            disponíveis na agenda.
                         </p>
 
                         <div className="mt-6">
-                            <Button href="/">Fazer marcação</Button>
+                            <Button
+                                type="button"
+                                onClick={openNewBookingModal}
+                            >
+                                Fazer marcação
+                            </Button>
                         </div>
                     </div>
                 ) : (
@@ -329,9 +357,9 @@ export function ClientBookingsPage() {
                         </h2>
                     </div>
 
-                    <p className="text-sm text-brand-gray">
+                    <span className="rounded-full border border-brand-gold/20 bg-white px-3 py-1 text-sm font-semibold text-brand-gray">
                         {bookingHistory.length}
-                    </p>
+                    </span>
                 </div>
 
                 {bookingHistory.length === 0 ? (
@@ -351,6 +379,12 @@ export function ClientBookingsPage() {
                     </div>
                 )}
             </section>
+
+            <NewBookingModal
+                isOpen={isNewBookingModalOpen}
+                onClose={closeNewBookingModal}
+                onBookingCreated={handleBookingCreated}
+            />
         </section>
     )
 }

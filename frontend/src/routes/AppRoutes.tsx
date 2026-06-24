@@ -8,6 +8,7 @@ import { ClientBookingsPage } from "../features/client-dashboard/pages/ClientBoo
 import { ClientDashboardPage } from "../features/client-dashboard/pages/ClientDashboardPage"
 import { OwnerDashboardPage } from "../features/owner-dashboard/pages/OwnerDashboardPage"
 import { ServiceDetailsPage } from "../features/services/pages/ServiceDetailsPage"
+import { ServicesPage } from "../features/services/pages/ServicesPage"
 import { BookingPage } from "../pages/BookingPage"
 import { HomePage } from "../pages/HomePage"
 import { LoginPage } from "../pages/LoginPage"
@@ -23,6 +24,7 @@ import { routePaths } from "./routePaths"
  * - Home
  * - Login
  * - Register
+ * - Services catalog
  * - Service details
  * - Booking
  *
@@ -61,6 +63,15 @@ export function AppRoutes() {
                 element={
                     <PublicLayout>
                         <RegisterPage />
+                    </PublicLayout>
+                }
+            />
+
+            <Route
+                path={routePaths.services}
+                element={
+                    <PublicLayout>
+                        <ServicesPage />
                     </PublicLayout>
                 }
             />

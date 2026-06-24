@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react"
 import { Button } from "../../../components/ui/Button"
 import { DashboardCard } from "../../../components/ui/DashboardCard"
 import { useAuth } from "../../auth/services/AuthContext"
+import { NewBookingModal } from "../../bookings/components/NewBookingModal"
 import { useToast } from "../../toast/services/ToastContext"
 import { getMyBookings } from "../services/clientDashboard.api"
 import type {
@@ -102,6 +103,9 @@ export function ClientDashboardPage() {
     const [bookings, setBookings] = useState<ClientBooking[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [errorMessage, setErrorMessage] = useState<string | null>(null)
+    const [isNewBookingModalOpen, setIsNewBookingModalOpen] =
+        useState(false)
+    const [bookingRefreshKey, setBookingRefreshKey] = useState(0)
 
     useEffect(() => {
         async function loadBookings() {
@@ -134,7 +138,7 @@ export function ClientDashboardPage() {
         }
 
         loadBookings()
-    }, [token, showToast])
+    }, [token, showToast, bookingRefreshKey])
 
     const now = new Date()
 
@@ -181,6 +185,19 @@ export function ClientDashboardPage() {
 
     const nextBooking = upcomingBookings[0] ?? null
 
+    function openNewBookingModal() {
+        setIsNewBookingModalOpen(true)
+    }
+
+    function closeNewBookingModal() {
+        setIsNewBookingModalOpen(false)
+    }
+
+    function handleBookingCreated() {
+        setIsNewBookingModalOpen(false)
+        setBookingRefreshKey((currentKey) => currentKey + 1)
+    }
+
     if (isLoading) {
         return <ClientDashboardSkeleton />
     }
@@ -205,7 +222,12 @@ export function ClientDashboardPage() {
                     </p>
                 </div>
 
-                <Button href="/">Nova marcação</Button>
+                <Button
+                    type="button"
+                    onClick={openNewBookingModal}
+                >
+                    Nova marcação
+                </Button>
             </div>
 
             {errorMessage ? (
@@ -284,7 +306,12 @@ export function ClientDashboardPage() {
                         </p>
 
                         <div className="mt-6">
-                            <Button href="/">Fazer uma marcação</Button>
+                            <Button
+                                type="button"
+                                onClick={openNewBookingModal}
+                            >
+                                Fazer uma marcação
+                            </Button>
                         </div>
                     </div>
                 ) : (
@@ -367,6 +394,12 @@ export function ClientDashboardPage() {
                     </div>
                 )}
             </div>
+
+            <NewBookingModal
+                isOpen={isNewBookingModalOpen}
+                onClose={closeNewBookingModal}
+                onBookingCreated={handleBookingCreated}
+            />
         </section>
     )
 }
